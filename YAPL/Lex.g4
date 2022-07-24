@@ -37,27 +37,26 @@ IGNOREINCOMMENTNEWLINE: '\n' {inComment}?  { linenum++; System.out.println("Line
 
 BADENDCOMMENT:  '*)' {initial}?  { System.out.println("Bad end comment"); if (true) { throw new RuntimeException("Bad end "); } };
 
+TRUE: [t][rR][uU][eE];
+FALSE: [f][aA][lL][sS][eE];
 
-TRUE: 'true';
-FALSE: 'false';
-
-CLASS: 'class';
-FI: 'fi';
-IF: 'if';
-IN: 'in';
-INHERITS: 'inherits';
-ISVOID: 'isvoid';
-LET: 'let';
-LOOP: 'loop';
-POOL: 'pool';
-THEN: 'then';
-ELSE: 'else';
-WHILE: 'while';
-CASE: 'case';
-ESAC: 'esac';
-NEW: 'new';
-OF: 'of';
-NOT: 'not';
+CLASS: [cC][lL][aA][sS][sS];
+FI: [fF][iI];
+IF: [iI][fF];
+IN: [iI][nN];
+INHERITS: [iI][nN][hH][eE][rR][iI][tT][sS];
+ISVOID: [iI][sS][vV][oO][iI][dD];
+LET: [lL][eE][tT];
+LOOP: [lL][oO][oO][pP];
+POOL: [pP][oO][oO][lL];
+THEN: [tT][hH][eE][nN];
+ELSE: [eE][lL][sS][eE];
+WHILE: [wW][hH][iI][lL][eE];
+CASE: [cC][aA][sS][eE];
+ESAC: [eE][sS][aA][cC];
+NEW: [nN][eE][wW];
+OF: [oO][fF];
+NOT: [nN][oO][tT];
 
 TYPE: [A-Z][_A-Za-z0-9]*;
 ID:  [a-z][_A-Za-z0-9]*;
