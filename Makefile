@@ -1,5 +1,5 @@
 ANTLR_JAR = /usr/local/lib/antlr-4.9.2-complete.jar
-ANTLR = antlr4
+ANTLR = java -jar $(ANTLR_JAR)
 ANTLR_FLAGS =  -visitor -no-listener
 ANTLR_OUT_DIR = dist
 GRAMMAR = YAPL

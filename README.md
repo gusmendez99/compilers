@@ -1,10 +1,10 @@
-# Compilers Lab 0
+# Compilers Lab 1
 ANTLR -> Parser/Lexer -> Parse Tree
 
 
 ## :ledger: Index
 
-- [Compilers Lab 0](#compilers-lab-0)
+- [Compilers Lab 1](#compilers-lab-1)
   - [:ledger: Index](#ledger-index)
   - [:beginner: About](#beginner-about)
   - [:electric_plug: Installation](#electric_plug-installation)

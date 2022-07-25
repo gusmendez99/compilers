@@ -37,9 +37,8 @@ public class YAPLParser extends Parser {
 	private static String[] makeLiteralNames() {
 		return new String[] {
 			null, null, null, null, null, null, null, null, null, null, null, null, 
-			null, "'true'", "'false'", "'class'", "'fi'", "'if'", "'in'", "'inherits'", 
-			"'isvoid'", "'let'", "'loop'", "'pool'", "'then'", "'else'", "'while'", 
-			"'case'", "'esac'", "'new'", "'of'", "'not'", null, null, null, "'('", 
+			null, null, null, null, null, null, null, null, null, null, null, null, 
+			null, null, null, null, null, null, null, null, null, null, null, "'('", 
 			"')'", "'{'", "'}'", "';'", "':'", "'<-'", "'=>'", "'~'", "','", "'.'", 
 			"'@'", "'*'", "'+'", "'-'", "'/'", "'<'", "'<='", "'='"
 		};
