@@ -1,1 +1,0 @@
-(program (klass class Main inherits IO { (feature num : Int <- (expr 500)) ; (feature main ( ) : SELF_TYPE { (expr { (expr out_string ( (expr (expr ( (expr num) )) . type_name ( )) )) ; (expr (expr out_string ( (expr (expr ( (expr new Object) )) . type_name ( )) )) . out_string ( (expr (expr ( (expr isvoid (expr self)) )) . type_name ( )) )) ; }) }) ; }) ; <EOF>)

@@ -6,7 +6,7 @@ program
    ;
 
 klass
-   : CLASS TYPE (INHERITS TYPE)? LBRACE (feature SEMI)* RBRACE { System.out.println("Class recognized..."); }
+   : CLASS TYPE (INHERITS TYPE)? LBRACE (feature SEMI)* RBRACE
    ;
 
 feature

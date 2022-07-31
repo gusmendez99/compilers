@@ -1,1 +1,0 @@
-(program (klass class Main inherits IO { (feature main ( ) : SELF_TYPE { (expr out_string ( (expr Hello, World.\n) )) }) ; }) ; <EOF>)

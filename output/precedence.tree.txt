@@ -1,1 +1,0 @@
-(program (klass class Main inherits IO { (feature a : Int <- (expr 2)) ; (feature b : Int <- (expr 5)) ; (feature c : Int <- (expr 8)) ; (feature main ( ) : SELF_TYPE { (expr { (expr a <- (expr (expr a) + (expr (expr b) * (expr c)))) ; (expr self) ; }) }) ; }) ; <EOF>)
