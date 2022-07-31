@@ -1,4 +1,4 @@
-# Generated from ./grammar/YAPL.g4 by ANTLR 4.9.2
+# Generated from ./grammar/YAPL.g4 by ANTLR 4.10
 from antlr4 import *
 if __name__ is not None and "." in __name__:
     from .YAPLParser import YAPLParser
