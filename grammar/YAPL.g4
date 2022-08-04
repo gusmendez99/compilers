@@ -1,51 +1,61 @@
 grammar YAPL;
 import Lex;
 
-program
-   : (klass SEMI)+ EOF
-   ;
+options{
+    language = Python3;
+}
 
-klass
-   : CLASS TYPE (INHERITS TYPE)? LBRACE (feature SEMI)* RBRACE
-   ;
+start 
+    : program
+    ;
 
-feature
-   : ID LPAREN (formal (COMMA formal)*)* RPAREN COLON TYPE LBRACE expr RBRACE # method
-   | <assoc=right> ID COLON TYPE (ASSIGN expr)? # attr
-   ;
+program 
+    : class_exp ';' program        # class_list
+    | EOF                          # end
+    ;
 
-formal
-  : ID COLON TYPE
-  ;
+class_exp
+    : CLASS TYPE (INHERITS TYPE)? '{' (feature ';')* '}'
+    ;
 
-let_formal
-  : <assoc=right> ID COLON TYPE (ASSIGN expr)?
-;
+feature 
+    : ID '(' (formal (',' formal)*)* ')' ':' TYPE '{' expr '}' # method
+    | ID ':' TYPE ( ASSIGNMENT expr )?                         # attribute
+    ;
+
+formal 
+    : ID ':' TYPE 
+    ;
+
+declaration
+    : ID ':' TYPE ( ASSIGNMENT expr )?
+    ;
 
 expr
-   : ID LPAREN (expr (COMMA expr)*)* RPAREN # selfdispatch
-   | expr (AT TYPE)? PERIOD ID LPAREN (expr (COMMA expr)*)* RPAREN # dispatch
-   | IF expr THEN expr ELSE expr FI # if
-   | WHILE expr LOOP expr POOL # while
-   | LET let_formal (COMMA let_formal)* IN expr # let
-   | CASE expr OF (ID COLON TYPE DARROW expr SEMI)+ ESAC # case
-   | NEW TYPE # new
-   | NEG expr # neg
-   | ISVOID expr # isvoid
-   | LPAREN expr RPAREN # paren
-   | LBRACE (expr SEMI)+ RBRACE # block
-   | expr MUL expr # mul
-   | expr DIV expr # div
-   | expr ADD expr # add
-   | expr MINUS expr # minus
-   | expr LEQ expr # lessThanOrEqualTo
-   | expr LT expr # lessThan
-   | expr EQ expr # eq
-   | NOT expr # not
-   | <assoc=right> ID ASSIGN expr # assign
-   | ID # id
-   | INT_CONST # int_const
-   | STR_CONST # str_const
-   | TRUE # bool_true
-   | FALSE # bool_false
-   ;
+    : expr ('@' TYPE)? '.' ID '(' ( expr (',' expr)* )* ')'         # dispatch
+    | ID '(' ( expr (',' expr)* )* ')'                              # call
+    | IF expr THEN expr ELSE expr FI                                # if
+    | WHILE expr LOOP expr POOL                                     # while
+    | '{' (expr ';') + '}'                                          # block
+    | LET declaration (',' declaration)* IN expr                    # letIn
+    | CASE expr OF (ID ':' TYPE CASEARR expr ';') + ESAC            # case
+    | NEW TYPE                                                      # newObject
+    | ISVOID expr                                                   # isVoid
+    | expr MULT expr                                                # star
+    | expr DIV expr                                                 # division
+    | expr ADD expr                                                 # add
+    | expr MINUS expr                                               # minus
+    | '~' expr                                                      # negInteger
+    | expr LT expr                                                  # lessThan
+    | expr LE expr                                                  # lessEqual
+    | expr EQ expr                                                  # equal
+    | NOT expr                                                      # negation
+    | '('expr')'                                                    # parenthesis
+    | INT                                                           # int
+    | STR                                                           # str
+    | TRUE                                                          # true
+    | FALSE                                                         # false
+    | ID                                                            # id
+    | ID ASSIGNMENT expr                                            # assignment
+    ;
+
