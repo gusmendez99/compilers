@@ -5,7 +5,7 @@ from antlr4 import *
 from yapl.grammar.YAPLLexer import YAPLLexer
 from yapl.grammar.YAPLParser import YAPLParser
 from yapl.grammar.YAPLVisitor import YAPLVisitor
-from antlr4.tree.Trees import Trees
+from yapl.visitors.ast import ASTVisitor
 
 def main():
     if len(sys.argv) < 2:
@@ -26,16 +26,12 @@ def main():
     stream = CommonTokenStream(lexer)
     # Parser
     parser = YAPLParser(stream)
-    tree = parser.program()
-
-    print(Trees.toStringTree(tree,None,parser))
-    print("Tokens:")
-    for token in stream.tokens:
-        print(" ",token.text, ':', token.type)
+    tree = parser.start()
 
     # Semantic Analysis
-    visitor = YAPLVisitor()
-    visitor.visit(tree)
+    visitor = ASTVisitor()
+    ast = visitor.visit(tree)
+    
     
 if __name__ == "__main__":
     main()
