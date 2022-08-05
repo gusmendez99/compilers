@@ -34,44 +34,12 @@ class TypeCheckVisitor:
 
     @visitor.when(MethodNode)
     def visit(self, node: MethodNode, context: ContextType, errors: list, current_type: Type):
-        inner_context = context.createChildContext()
-        inner_context.defineSymbol("self", current_type)
-        for param in node.params:
-            if not self.visit(param, context, errors, current_type):
-                return False
-            if param.return_type == "SELF_TYPE":
-                param.return_type = current_type.name
-            inner_context.defineSymbol(param.name, context.getType(param.returnType))
-        if not self.visit(node.body, inner_context, errors, current_type):
-            return False
-        node.context_type = inner_context
-        node.return_type = node.method_type
-        if node.return_type == "SELF_TYPE":
-            node.return_type = current_type.name
-        
-        # TODO: SELF_TYPE check here? Maybe
-        node.dynamic_type = node.body.return_type
-        if not context.heir(context.getType(node.body.return_type), context.getType(node.return_type)):
-            print("Return type of method " + node.name + " must be " + node.return_type + ", not " + node.body.return_type)
-            return False
+        # TODO: Complete all type checking for Project 1
         return True
 
     @visitor.when(AttributeNode)
     def visit(self, node: AttributeNode, context: ContextType, errors: list, current_type: Type):
-        node.current_type = node.attr_type
-        node.dynamic_type = node.attr_type
-        if node.init_expr:
-            inner_context = context.createChildContext()
-            inner_context.defineSymbol("self", current_type)
-            if not self.visit(node.init_expr, inner_context, errors, current_type):
-                return False
-            node.dynamic_type = node.init_expr.return_type
-            context.defineSymbol(node.name, context.getType(node.attr_type))
-            if not context.heir(context.getType(node.init_expr.return_type), context.getType(node.attr_type)):
-                print("Return type of init expression must be " + node.attr_type + ", not " + node.init_expr.return_type)
-                return False
-            return True
-        context.defineSymbol(node.name, context.getType(node.attr_type))
+        # TODO: Complete all type checking for Project 1
         return True
 
     @visitor.when(ParamNode)
