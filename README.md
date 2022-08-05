@@ -33,11 +33,11 @@ If everything it's OK, the Symbol Table may look like the following outputs:
 
 **Hello World**
 
-![hello_world](https://github.com/gusmendez99/compilers-lab-0/blob/main/images/hello.png?raw=true)
+![hello_world](https://github.com/gusmendez99/compilers/blob/main/images/hello.png?raw=true)
 
 **Fibonacci**
 
-![fibonacci](https://github.com/gusmendez99/compilers-lab-0/blob/main/images/fibonacci.png?raw=true)
+![fibonacci](https://github.com/gusmendez99/compilers/blob/main/images/fibonacci.png?raw=true)
 
 
 ###  :red_circle: Type Checking
