@@ -1,5 +1,5 @@
 # Compilers Lab 1
-ANTLR -> Parser/Lexer -> Parse Tree
+ANTLR -> Parser/Lexer -> AST -> Visitors -> Symbol Table
 
 
 ## :ledger: Index
@@ -9,66 +9,46 @@ ANTLR -> Parser/Lexer -> Parse Tree
   - [:beginner: About](#beginner-about)
   - [:electric_plug: Installation](#electric_plug-installation)
   - [:zap: Usage](#zap-usage)
-    - [:cyclone: Compile](#cyclone-compile)
     - [:rocket: Run](#rocket-run)
-    - [:red_circle: Error Handling](#red_circle-error-handling)
-  - [:star2: Authors](#star2-authors)
+    - [:red_circle: Type Checking](#red_circle-type-checking)
+  - [:star2: Author](#star2-author)
   - [:lock: License](#lock-license)
 
 ##  :beginner: About
-Implementation of an ANTLR4 parser & lexer based on YAPL Language Specification, made with Java.
-
-
+Implementation of Symbol Table & Hierarchy Checking, based on YAPL Language Specification. Made with Python...
 
 ##  :electric_plug: Installation
-You must follow installation instructions from [ANTLR4](https://www.antlr.org/download.html) v4.9.2.
-Remember to place ANTLR .jar in `/usr/local/lib/` folder & set `antlr alias`.
 
-```
-alias antlr4='java -jar /usr/local/lib/antlr-4.9.2-complete.jar'
-```
+Just need to install `requirements.txt` dependencies. ANTLR4 compiling steps for lexer/parser generation were omitted, but you can generate them with `make all`.
 
 ## :zap: Usage
-###  :cyclone: Compile
-
-```
-make compile
-```
 
 ###  :rocket: Run
 
 ```
-make run
+python3 main.py TEST_FILE
 ```
 
-If everything it's OK, it'll display a parse tree of the test input file:
+If everything it's OK, the Symbol Table may look like the following outputs:
+
+**Hello World**
+
+![hello_world](https://github.com/gusmendez99/compilers-lab-0/blob/main/images/hello.png?raw=true)
 
 **Fibonacci**
 
 ![fibonacci](https://github.com/gusmendez99/compilers-lab-0/blob/main/images/fibonacci.png?raw=true)
 
-**Operator Precedence**
 
-![precedence](https://github.com/gusmendez99/compilers-lab-0/blob/main/images/precedence.png?raw=true)
+###  :red_circle: Type Checking
 
+- [x] Hierarchy Checking
+  - [x] Class
+  - [x] Methods (return type)
+  - [x] Attributes (position, quantity & override)
+- [x] Base Type Checking (Complete TODOs for Project 1)
 
-###  :red_circle: Error Handling
-
-Example 1: String length > 1024 or has escaped chars (Bad)
-
-![string](https://github.com/gusmendez99/compilers-lab-0/blob/main/images/error_string.png?raw=true)
-
-
-Example 2: Bad comment
-
-![string](https://github.com/gusmendez99/compilers-lab-0/blob/main/images/error_comment.png?raw=true)
-
-
-
-
-## :star2: Authors
-
-Roberto Figueroa
+## :star2: Author
 
 Gustavo Méndez
 

@@ -70,10 +70,10 @@ def main():
     print("Type Check status: ", type_check_status)
     
     """ Symbol Table Summary """
-    symbol_table_headers = ["SYMBOL", "TYPE EXPR", "PARENT?", "ATTRS?", "# METHODS?", "METHOD NAMES"]
+    symbol_table_headers = ["SYMBOL", "TYPE EXPR", "PARENT?", "ATTRS?", "METHOD NAMES"]
     symbol_table_data = []
     for type_ in ct.types.keys():
-        symbol_table_data.append([type_, ct.types[type_].name, ct.types[type_].parent, ct.types[type_].attributes.keys(), len(ct.types[type_].methods), ct.types[type_].methods.keys()])
+        symbol_table_data.append([type_, ct.types[type_].name, ct.types[type_].parent, list(ct.types[type_].attributes.keys()), list(ct.types[type_].methods.keys())])
     
     print("\n -----> SYMBOL TABLE <----- \n")
     print(tabulate(symbol_table_data, headers=symbol_table_headers))
