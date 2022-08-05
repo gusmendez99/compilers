@@ -134,11 +134,11 @@ class TypeHierarchy:
             self.ast_children_nodes[name] = []
         self.ast_children_nodes[name].append(child)
 
-    def herency_resolve(self, context_type: ContextType, current_parent: str):
+    def inheritance_resolve(self, context_type: ContextType, current_parent: str):
         for child in self.ast_children_nodes[current_parent]:
-            HerencyResolveVisitor().visit(child, context_type)
+            InheritanceResolveVisitor().visit(child, context_type)
         for child in self.types_defined[current_parent]:
-            self.herency_resolve(context_type, child)
+            self.inheritance_resolve(context_type, child)
 
 
 class Hierarchy:
@@ -169,7 +169,7 @@ class Hierarchy:
 
 
 
-class HerencyResolveVisitor:
+class InheritanceResolveVisitor:
     @visitor.on('node')
     def visit(self, node: Node, context: ContextType):
         pass

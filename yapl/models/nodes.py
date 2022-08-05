@@ -72,7 +72,7 @@ class ProgramNode(Node):
             s += str(c) + '\n'
         return s
 
-    def validate(self, context_attributes_herency: ContextType, context: Context = None):
+    def validate(self, context_attributes_inheritance: ContextType, context: Context = None):
         # TODO: complete validation part
         return True
 

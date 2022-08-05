@@ -58,7 +58,7 @@ def main():
     type_hierarchy = TypeHierarchy()
 
     hierarchy.visit(ast, ct, type_hierarchy)
-    type_hierarchy.herency_resolve(ct, 'Object')
+    type_hierarchy.inheritance_resolve(ct, 'Object')
     type_hierarchy_status = ast.validate(ct)
 
     print("Hierarchy Check status: ", type_hierarchy_status)
