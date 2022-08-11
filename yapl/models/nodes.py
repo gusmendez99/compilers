@@ -5,6 +5,8 @@ from yapl.models.types import Type, ContextType
  Base node
 """
 
+ELEMENTAL_TYPES = ['Int', 'String', 'Bool']
+
 class Node:
     """
     AST base node
@@ -73,17 +75,29 @@ class ProgramNode(Node):
         return s
 
     def validate(self, context_attributes_inheritance: ContextType, context: Context = None):
-        # TODO: complete validation part
+        self.context_type = context_attributes_herency
+        for statement in self.class_list:
+            if statement.parent and statement.parent in ELEMENTAL_TYPES:
+                if statement.parent == 'Int':
+                    print('A class cannot inherit from Int')
+                    return False
+                if statement.parent == 'String':
+                    print('A class cannot inherit from String')
+                    return False
+                if statement.parent == 'Bool':
+                    print('A class cannot inherit from Bool')
+                    return False
+
+        for statement in self.class_list:
+            if not statement.validate(self.context):
+                return False
+            self.context_map[statement.name] = self.context.children[len(self.context.children) - 1]
+        
         return True
 
 
 class ClassNode(Node):
     def __init__(self, name, parent, features):
-        """
-        :param name: The name of the class
-        :param parent: The name of the parent class
-        :param features: A list with the features of the class (methods and atributes)
-        """
         super().__init__()
         self.name = name
         self.parent = parent
@@ -93,7 +107,13 @@ class ClassNode(Node):
         return str(self.name)
 
     def validate(self, context) -> bool:
-        # TODO: complete validation part
+        self.inner_context = context.create_child_context()
+        self.inner_context.define('self')
+        for attr in self.context_type.types[self.name].attributes.keys():
+            self.inner_context.define(attr)
+        for feature in self.features:
+            if not feature.validate(self.inner_context):
+                return False
         return True
 
 
@@ -114,7 +134,19 @@ class MethodNode(FeatureNode):
         self.body = body
 
     def validate(self, context: Context) -> bool:
-        # TODO: complete validation part
+        # New context inside method node
+        self.inner_context = context.create_child_context()
+
+        for param in self.params:
+            self.inner_context.define(param.name)
+
+        if not self.body.validate(self.inner_context):
+            return False
+
+        if not context.define(self.name, [param.name for param in self.params]):
+            print(f'There were multiple definitions of method: {self.name}')
+            return False
+
         return True
 
 
@@ -126,7 +158,11 @@ class AttributeNode(FeatureNode):
         self.init_expr = init_expr
 
     def validate(self, context: Context) -> bool:
-        # TODO: complete validation part
+        if self.init_expr and not self.init_expr.validate(context):
+            return False
+        if not context.define(self.name):
+            print(f'There were multiple definition of attribute: {self.name}')
+            return False
         return True
 
 
@@ -149,7 +185,9 @@ class ObjectNode(Node):
         return self.name
 
     def validate(self, context: Context):
-        # TODO: complete validation part
+        if not context.is_defined(self.name):
+            print(f'The object "{self.name}" is not defined in this scope')
+            return False
         return True
 
 
@@ -183,7 +221,12 @@ class CaseNode(ExpressionNode):
         self.actions = actions
 
     def validate(self, context: Context):
-        # TODO: complete validation part
+        if not self.expr.validate(context):
+            return False
+
+        for action in self.actions:
+            if not action.validate(context):
+                return False
         return True
 
 
@@ -336,8 +379,11 @@ class LetInNode(AtomicNode):
         return self.expr.get_type
 
     def validate(self, context: Context):
-        # TODO: complete validation part
-        return True
+        self.inner_context = context.create_child_context()
+        for declaration in self.declaration_list:
+            if not declaration.validate(self.inner_context):
+                return False
+        return self.expr.validate(self.inner_context)
 
 
 class DeclarationNode(ExpressionNode):
@@ -352,7 +398,11 @@ class DeclarationNode(ExpressionNode):
         return self.type_token
 
     def validate(self, context: Context):
-        # TODO: complete validation part
+        if self.expr is not None and not self.expr.validate(context):
+            return False
+        if not context.define(self.idx_token):
+            print(f'There were multiple declaration of var with id: {self.idx_token}')
+            return False
         return True
 
 
@@ -363,12 +413,16 @@ class IfNode(ExpressionNode):
         self.then_expr = then_expr
         self.else_expr = else_expr
 
-    # Este no se usa
     def get_type(self):
         return self.then_expr
 
     def validate(self, context: Context):
-        # TODO: complete validation part
+        if not self.predicate.validate(context):
+            return False
+        if not self.then_expr.validate(context):
+            return False
+        if not self.else_expr.validate(context):
+            return False
         return True
 
 
@@ -378,12 +432,14 @@ class WhileNode(ExpressionNode):
         self.predicate = predicate
         self.expr = expr
 
-    # Este no se usa
     def get_type(self):
         return self.expr.get_type
 
     def validate(self, context: Context):
-        # TODO: complete validation part
+        if not self.predicate.validate(context):
+            return False
+        if not self.expr.validate(context):
+            return False
         return True
 
 
@@ -393,7 +449,10 @@ class BlockNode(AtomicNode):
         self.expr_list = expr_list
 
     def validate(self, context: Context):
-        # TODO: complete validation part
+        # Validate all expressions inside code block
+        for expresion in self.expr_list:
+            if not expresion.validate(context):
+                return False
         return True
 
 
@@ -405,7 +464,11 @@ class AssignNode(AtomicNode):
         self.variable_info = None
 
     def validate(self, context: Context):
-        # TODO: complete validation part
+        if not self.expr.validate(context):
+            return False
+        if not context.is_defined(self.idx_token):
+            print(f'Var with id "{self.idx_token}" is not defined')
+            return False
         return True
 
 
@@ -417,7 +480,11 @@ class DynamicDispatchNode(ExpressionNode):
         self.arguments = arguments
 
     def validate(self, context: Context):
-        # TODO: complete validation part
+        if type(self.instance) != str and not self.instance.validate(context):
+            return False
+        for expresion in self.arguments:
+            if not expresion.validate(context):
+                return False
         return True
 
 
@@ -430,7 +497,11 @@ class StaticDispatchNode(ExpressionNode):
         self.arguments = arguments
 
     def validate(self, context: Context):
-        # TODO: complete validation part
+        if not self.instance.validate(context):
+            return False
+        for expresion in self.arguments:
+            if not expresion.validate(context):
+                return False
         return True
 
 
@@ -493,8 +564,6 @@ class ScanNode(AtomicNode):
     def __init__(self, method):
         self.method = method
         super(ScanNode, self).__init__()
-        # TODO : Chequear si el scan node recibe ya el string a escanear
 
     def validate(self, context: Context) -> bool:
         return True
-
