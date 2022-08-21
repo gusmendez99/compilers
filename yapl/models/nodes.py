@@ -75,7 +75,7 @@ class ProgramNode(Node):
         return s
 
     def validate(self, context_attributes_inheritance: ContextType, context: Context = None):
-        self.context_type = context_attributes_herency
+        self.context_type = context_attributes_inheritance
         for statement in self.class_list:
             if statement.parent and statement.parent in ELEMENTAL_TYPES:
                 if statement.parent == 'Int':
