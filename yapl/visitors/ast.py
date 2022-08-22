@@ -11,31 +11,44 @@ class ASTVisitor(YAPLVisitor):
 
     def visitInt(self, ctx: YAPLParser.IntContext):
         node = IntegerNode(ctx.INT().getText())
+        node.set_line(ctx.INT().symbol.line)
         return node
 
     def visitId(self, ctx: YAPLParser.IdContext):
-        return ObjectNode(ctx.ID().getText())
+        node = ObjectNode(ctx.ID().getText())
+        node.set_line(ctx.ID().symbol.line)
+        return node
 
     def visitAdd(self, ctx: YAPLParser.AddContext):
         left = self.visit(ctx.expr(0))
         right = self.visit(ctx.expr(1))
-        return PlusNode(left, right)
+        node = PlusNode(left, right)
+        node.set_line(ctx.ADD().symbol.line)
+        return node
 
     def visitAssignment(self, ctx: YAPLParser.AssignmentContext):
         expr = self.visit(ctx.expr())
-        return AssignNode(ctx.ID().getText(), expr)
+        node = AssignNode(ctx.ID().getText(), expr)
+        node.set_line(ctx.ASSIGNMENT().symbol.line)
+        return node
 
     def visitAttribute(self, ctx: YAPLParser.AttributeContext):
         if ctx.expr() is not None:
             expr = self.visit(ctx.expr())
-            return AttributeNode(ctx.ID().getText(), ctx.TYPE().getText(), expr)
-        return AttributeNode(ctx.ID().getText(), ctx.TYPE().getText(), None)
+            node = AttributeNode(ctx.ID().getText(), ctx.TYPE().getText(), expr)
+            node.set_line(ctx.ID().symbol.line)
+            return node
+        node = AttributeNode(ctx.ID().getText(), ctx.TYPE().getText(), None)
+        node.set_line(ctx.ID().symbol.line)
+        return node
 
     def visitBlock(self, ctx: YAPLParser.BlockContext):
         expr_list = []
         for expr in ctx.expr():
             expr_list.append(self.visit(expr))
-        return BlockNode(expr_list)
+        node = BlockNode(expr_list)
+        # node.set_line(ctx.???().symbol.line)
+        return node
 
     def visitCall(self, ctx: YAPLParser.CallContext):
         instance = "self"
@@ -45,12 +58,20 @@ class ASTVisitor(YAPLVisitor):
             arg = self.visit(expr)
             arguments.append(arg)
         if method == "in_string" or method == "in_int":
-            return ScanNode(method)
+            node = ScanNode(method)
+            node.set_line(ctx.ID().symbol.line)
+            return node
         if method == "out_string":
-            return PrintStringNode(arguments[0])
+            node = PrintStringNode(arguments[0])
+            node.set_line(ctx.ID().symbol.line)
+            return node
         if method == "out_int":
-            return PrintIntegerNode(arguments[0])
-        return DynamicDispatchNode(instance, method, arguments)
+            node = PrintIntegerNode(arguments[0])
+            node.set_line(ctx.ID().symbol.line)
+            return node
+        node = DynamicDispatchNode(instance, method, arguments)
+        node.set_line(ctx.ID().symbol.line)
+        return node
 
     def visitCase(self, ctx: YAPLParser.CaseContext):
         expr = self.visit(ctx.expr(0))
@@ -58,8 +79,11 @@ class ASTVisitor(YAPLVisitor):
         for i in range(1, len(ctx.expr())):
             current_expr = self.visit(ctx.expr(i))
             action = ActionNode(ctx.ID(i - 1).getText(), ctx.TYPE(i - 1).getText(), current_expr)
+            action.set_line(ctx.ID(i-1).symbol.line)
             actions.append(action)
-        return CaseNode(expr, actions)
+        node = CaseNode(expr, actions)
+        node.set_line(ctx.ID().symbol.line)
+        return node
 
     def visitClass_exp(self, ctx: YAPLParser.Class_expContext):
         name = ctx.TYPE(0).getText()
@@ -70,13 +94,17 @@ class ASTVisitor(YAPLVisitor):
         for f in ctx.feature():
             feature = self.visit(f)
             features.append(feature)
-        return ClassNode(name, parent, features)
+        node = ClassNode(name, parent, features)
+        node.set_line(ctx.CLASS().symbol.line)
+        return node
 
     def visitClass_list(self, ctx: YAPLParser.Class_listContext):
         class_list = [self.visit(ctx.class_exp())]
         program = self.visit(ctx.program())
         class_list.extend(program.class_list)
-        return ProgramNode(class_list)
+        node = ProgramNode(class_list)
+        # node.set_line(ctx.???().symbol.line)
+        return node
 
     def visitDeclaration(self, ctx: YAPLParser.DeclarationContext):
         idx_token = ctx.ID().getText()
@@ -84,7 +112,9 @@ class ASTVisitor(YAPLVisitor):
         expr = None
         if ctx.expr() is not None:
             expr = self.visit(ctx.expr())
-        return DeclarationNode(idx_token, type_token, expr)
+        node = DeclarationNode(idx_token, type_token, expr)
+        node.set_line(ctx.ID().symbol.line)
+        return node
 
     def visitDispatch(self, ctx: YAPLParser.DispatchContext):
         expr = self.visit(ctx.expr(0))
@@ -95,50 +125,76 @@ class ASTVisitor(YAPLVisitor):
             arguments.append(arg)
         if ctx.TYPE() is not None:
             t = ctx.TYPE().getText()
-            return StaticDispatchNode(expr, t, method, arguments)
+            node = StaticDispatchNode(expr, t, method, arguments)
+            node.set_line(ctx.ID().symbol.line)
+            return node
         if method == "in_string" or method == "in_int":
-            return ScanNode(method)
+            node = ScanNode(method)
+            node.set_line(ctx.ID().symbol.line)
+            return node
         if method == "out_string":
-            return PrintStringNode(arguments[0])
+            node = PrintStringNode(arguments[0])
+            node.set_line(ctx.ID().symbol.line)
+            return node
         if method == "out_int":
-            return PrintIntegerNode(arguments[0])
-        return DynamicDispatchNode(expr, method, arguments)
+            node = PrintIntegerNode(arguments[0])
+            node.set_line(ctx.ID().symbol.line)
+            return node
+        node = DynamicDispatchNode(expr, method, arguments)
+        node.set_line(ctx.ID().symbol.line)
+        return node
 
     def visitDivision(self, ctx: YAPLParser.DivisionContext):
         left = self.visit(ctx.expr(0))
         right = self.visit(ctx.expr(1))
-        return DivNode(left, right)
+        node = DivNode(left, right)
+        node.set_line(ctx.DIV().symbol.line)
+        return node
 
     def visitEqual(self, ctx: YAPLParser.EqualContext):
         left = self.visit(ctx.expr(0))
         right = self.visit(ctx.expr(1))
-        return EqualNode(left, right)
+        node = EqualNode(left, right)
+        node.set_line(ctx.EQ().symbol.line)
+        return node
 
     def visitFalse(self, ctx: YAPLParser.FalseContext):
-        return BooleanNode(ctx.FALSE().getText())
+        node = BooleanNode(ctx.FALSE().getText())
+        node.set_line(ctx.FALSE().symbol.line)
+        return node
 
     def visitFormal(self, ctx: YAPLParser.FormalContext):
-        return ParamNode(ctx.ID().getText(), ctx.TYPE().getText())
+        node = ParamNode(ctx.ID().getText(), ctx.TYPE().getText())
+        node.set_line(ctx.ID().symbol.line)
+        return node
 
     def visitIf(self, ctx: YAPLParser.IfContext):
         predicate = self.visit(ctx.expr(0))
         then_expr = self.visit(ctx.expr(1))
         else_expr = self.visit(ctx.expr(2))
-        return IfNode(predicate, then_expr, else_expr)
+        node = IfNode(predicate, then_expr, else_expr)
+        node.set_line(ctx.IF().symbol.line)
+        return node
 
     def visitIsVoid(self, ctx: YAPLParser.IsVoidContext):
         expr = self.visit(ctx.expr())
-        return IsVoidNode(expr)
+        node = IsVoidNode(expr)
+        node.set_line(ctx.ISVOID().symbol.line)
+        return node
 
     def visitLessEqual(self, ctx: YAPLParser.LessEqualContext):
         left = self.visit(ctx.expr(0))
         right = self.visit(ctx.expr(1))
-        return LessEqualNode(left, right)
+        node = LessEqualNode(left, right)
+        node.set_line(ctx.LE().symbol.line)
+        return node
 
     def visitLessThan(self, ctx: YAPLParser.LessThanContext):
         left = self.visit(ctx.expr(0))
         right = self.visit(ctx.expr(1))
-        return LessThanNode(left, right)
+        node = LessThanNode(left, right)
+        node.set_line(ctx.LT().symbol.line)
+        return node
 
     def visitLetIn(self, ctx: YAPLParser.LetInContext):
         declaration = [self.visit(ctx.declaration(0))]
@@ -146,26 +202,36 @@ class ASTVisitor(YAPLVisitor):
             dec = self.visit(ctx.declaration(i))
             declaration.append(dec)
         expr = self.visit(ctx.expr())
-        return LetInNode(None, declaration, expr)
+        node = LetInNode(None, declaration, expr)
+        node.set_line(ctx.LET().symbol.line)
+        return node
 
     def visitMethod(self, ctx: YAPLParser.MethodContext):
         name = ctx.ID().getText()
         formal_params = [self.visit(ctx.formal(i)) for i in range(len(ctx.formal()))]
         type_return = ctx.TYPE().getText()
         expr = self.visit(ctx.expr())
-        return MethodNode(name, formal_params, type_return, expr)
+        node = MethodNode(name, formal_params, type_return, expr)
+        node.set_line(ctx.ID().symbol.line)
+        return node
 
     def visitMinus(self, ctx: YAPLParser.MinusContext):
         left = self.visit(ctx.expr(0))
         right = self.visit(ctx.expr(1))
-        return MinusNode(left, right)
+        node = MinusNode(left, right)
+        node.set_line(ctx.MINUS().symbol.line)
+        return node
 
     def visitNegation(self, ctx: YAPLParser.NegationContext):
         expr = self.visit(ctx.expr())
-        return BooleanNegation(expr)
+        node = BooleanNegation(expr)
+        node.set_line(ctx.NOT().symbol.line)
+        return node
 
     def visitNewObject(self, ctx: YAPLParser.NewObjectContext):
-        return NewObjectNode(ctx.TYPE().getText())
+        node = NewObjectNode(ctx.TYPE().getText())
+        node.set_line(ctx.NEW().symbol.line)
+        return node
 
     def visitParenthesis(self, ctx: YAPLParser.ParenthesisContext):
         return self.visit(ctx.expr())
@@ -173,21 +239,33 @@ class ASTVisitor(YAPLVisitor):
     def visitStar(self, ctx: YAPLParser.StarContext):
         left = self.visit(ctx.expr(0))
         right = self.visit(ctx.expr(1))
-        return StarNode(left, right)
+        node = StarNode(left, right)
+        node.set_line(ctx.MULT().symbol.line)
+        return node
 
     def visitStr(self, ctx: YAPLParser.StrContext):
-        return StringNode(ctx.STR().getText())
+        node = StringNode(ctx.STR().getText())
+        node.set_line(ctx.STR().symbol.line)
+        return node
 
     def visitTrue(self, ctx: YAPLParser.TrueContext):
-        return BooleanNode(ctx.TRUE())
+        node = BooleanNode(ctx.TRUE())
+        node.set_line(ctx.TRUE().symbol.line)
+        return node
 
     def visitWhile(self, ctx: YAPLParser.WhileContext):
         predicate = self.visit(ctx.expr(0))
         expr = self.visit(ctx.expr(1))
-        return WhileNode(predicate, expr)
+        node = WhileNode(predicate, expr)
+        node.set_line(ctx.WHILE().symbol.line)
+        return node
 
     def visitNegInteger(self, ctx: YAPLParser.NegIntegerContext):
-        return IntegerNegation(self.visit(ctx.expr()))
+        node = IntegerNegation(self.visit(ctx.expr()))
+        # node.set_line(ctx.???().symbol.line)
+        return node
 
     def visitEnd(self, ctx: YAPLParser.EndContext):
-        return ProgramNode([])
+        node = ProgramNode([])
+        node.set_line(ctx.EOF().symbol.line)
+        return node

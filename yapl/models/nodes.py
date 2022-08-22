@@ -16,6 +16,10 @@ class Node:
         self.return_type = Type('Untype')
         self.dynamic_type = Type('Untype')
         self.inner_context = None
+        self.line = -1
+
+    def set_line(self, line = -1):
+        self.line = line
     
     def validate(self, context: Context) -> bool:
         """

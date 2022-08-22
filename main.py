@@ -42,38 +42,39 @@ def main():
     # Semantic Analysis
     visitor = ASTVisitor()
     ast = visitor.visit(tree)
-    ct = ContextType()
+    active_context_type = ContextType()
 
     """ Visitors Phase (TODO: Rename this Compilers phase) """
     # 1. Type Collector
     type_collector = TypeCollectorVisitor()
-    type_collector.visit(ast, ct, [])
+    type_collector.visit(ast, active_context_type, [])
 
     # 2. Type Builder
     type_builder = TypeBuilderVisitor()
-    type_builder.visit(ast, ct, [])
+    type_builder.visit(ast, active_context_type, [])
 
     # 3. Heirarchy
     hierarchy = Hierarchy()
     type_hierarchy = TypeHierarchy()
 
-    hierarchy.visit(ast, ct, type_hierarchy)
-    type_hierarchy.inheritance_resolve(ct, 'Object')
-    type_hierarchy_status = ast.validate(ct)
+    hierarchy.visit(ast, active_context_type, type_hierarchy)
+    print('Errors 1: ', hierarchy.errors)
+    type_hierarchy.inheritance_resolve(active_context_type, 'Object')
+    print('Errors 2: ', type_hierarchy.errors)
+    type_hierarchy_status = ast.validate(active_context_type)
 
     print("Hierarchy Check status: ", type_hierarchy_status)
     
     # 4. Type Checking
     type_checker = TypeCheckVisitor()
-    type_check_status = type_checker.visit(ast, ct, [])
-
-    print("Type Check status: ", type_check_status)
+    type_checker.visit(ast, active_context_type, [])
+    print('Errors 3: ', type_checker.errors)
     
     """ Symbol Table Summary """
     symbol_table_headers = ["SYMBOL", "TYPE EXPR", "PARENT?", "ATTRS?", "METHOD NAMES"]
     symbol_table_data = []
-    for type_ in ct.types.keys():
-        symbol_table_data.append([type_, ct.types[type_].name, ct.types[type_].parent, list(ct.types[type_].attributes.keys()), list(ct.types[type_].methods.keys())])
+    for type_ in active_context_type.types.keys():
+        symbol_table_data.append([type_, active_context_type.types[type_].name, active_context_type.types[type_].parent, list(active_context_type.types[type_].attributes.keys()), list(active_context_type.types[type_].methods.keys())])
     
     print("\n -----> SYMBOL TABLE <----- \n")
     print(tabulate(symbol_table_data, headers=symbol_table_headers))

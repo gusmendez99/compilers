@@ -1,6 +1,7 @@
 import yapl.visitors.decorator as visitor
 from yapl.models.types import *
 from yapl.models.context import Context
+from yapl.visitors.utils import CheckError
 from yapl.models.nodes import (
     Node,
     ProgramNode,
@@ -63,6 +64,7 @@ class TypeCollectorVisitor:
         if node.parent != None:
             context.getType(node.name).parent = node.parent
 
+
 class TypeBuilderVisitor:
     @visitor.on('node')
     def visit(self, node: Node, context: ContextType, errors):
@@ -105,6 +107,7 @@ class TypeHierarchy:
     def __init__(self):
         self.types_defined = {}
         self.ast_children_nodes = {}
+        self.errors = []
 
         self.define_type('Object')
         self.define_type('IO')
@@ -136,12 +139,18 @@ class TypeHierarchy:
 
     def inheritance_resolve(self, context_type: ContextType, current_parent: str):
         for child in self.ast_children_nodes[current_parent]:
-            InheritanceResolveVisitor().visit(child, context_type)
+            inheritance_resolve_visitor = InheritanceResolveVisitor()
+            inheritance_resolve_visitor.visit(child, context_type)
+            if inheritance_resolve_visitor.errors:
+                self.errors.extend(inheritance_resolve_visitor.errors)
         for child in self.types_defined[current_parent]:
             self.inheritance_resolve(context_type, child)
 
 
 class Hierarchy:
+    def __init__(self):
+        self.errors = []
+    
     @visitor.on('node')
     def visit(self, node: Node, context: ContextType, type_hierarchy: TypeHierarchy):
         pass
@@ -161,7 +170,13 @@ class Hierarchy:
         if node.parent is None:
             node.parent = 'Object'
         if node.parent not in context.types.keys():
-            print("Type " + node.parent + " not defined")
+            # print("Type " + node.parent + " not defined")
+            self.errors.append(
+                CheckError(
+                    text="Type " + node.parent + " not defined",
+                    line=node.line
+                )
+            )
             return False
         type_hierarchy.set_child(node.parent, node.name)
         type_hierarchy.set_child_node(node.parent, node)
@@ -170,6 +185,9 @@ class Hierarchy:
 
 
 class InheritanceResolveVisitor:
+    def __init__(self):
+        self.errors = []
+
     @visitor.on('node')
     def visit(self, node: Node, context: ContextType):
         pass
@@ -192,7 +210,13 @@ class InheritanceResolveVisitor:
 
         for attribute in type_of_parent.attributes.values():
             if attribute in type_of_class.attributes.values():
-                print('The attributes of a class can not be redefined in the child class')
+                # print('The attributes of a class can not be redefined in the child class')
+                self.errors.append(
+                    CheckError(
+                        text="The attributes of a class can not be redefined in the child class",
+                        line=node.line
+                    )
+                )
                 return False
             else:
                 type_of_class.defineAttribute(attribute.name, attribute.attribute_type)
@@ -205,16 +229,34 @@ class InheritanceResolveVisitor:
                 if method_of_parent.name == method_of_class.name:
                     founded = True
                     if method_of_parent.return_type != method_of_class.return_type:
-                        print("Return type of method must be the same of return type from inherits class")
+                        # print("Return type of method must be the same of return type from inherits class")
+                        self.errors.append(
+                            CheckError(
+                                text="Return type of method must be the same of return type from inherits class",
+                                line=node.line
+                            )
+                        )
                         return False
                     if len(method_of_parent.arguments) != len(method_of_class.arguments):
-                        print("The amount of arguments of method must be the same of method from inherits class")
+                        # print("The amount of arguments of method must be the same of method from inherits class")
+                        self.errors.append(
+                            CheckError(
+                                text="The amount of arguments of method must be the same of method from inherits class",
+                                line=node.line
+                            )
+                        )
                         return False
                     for i in range(len(method_of_parent.arguments)):
                         attr_1: Attribute = method_of_parent.arguments[i]
                         attr_2: Attribute = method_of_class.arguments[i]
                         if attr_1.attribute_type != attr_2.attribute_type:
-                            print("Type of attribute in position " + str(i) + " must be the same of the method from inherits class")
+                            # print("Type of attribute in position " + str(i) + " must be the same of the method from inherits class")
+                            self.errors.append(
+                                CheckError(
+                                    text="Type of attribute in position " + str(i) + " must be the same of the method from inherits class",
+                                    line=node.line
+                                )
+                            )
                             return False
                 if founded:
                     break
