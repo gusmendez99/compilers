@@ -17,21 +17,14 @@ from yapl.visitors.collector import (
 )
 from yapl.visitors.typecheck import TypeCheckVisitor
 
+# Flask
+import json
+from flask import Flask, request, jsonify
+from flask_cors import CORS
 
-def main():
-    if len(sys.argv) < 2:
-        print('You must pass the YAPL test file as param...')
-        sys.exit(1)
 
-    # Load test file
-    test_file, data = None, None
-    try:
-        test_file = sys.argv[1]
-        data = FileStream(test_file)
-    except:
-        print('Error on YAPL test file load...')
-        sys.exit(1)
-
+def process_input_code(code = ""):
+    data =  InputStream(code)
     # Lexer
     lexer = YAPLLexer(data)
     stream = CommonTokenStream(lexer)
@@ -44,7 +37,7 @@ def main():
     ast = visitor.visit(tree)
     active_context_type = ContextType()
 
-    """ Visitors Phase (TODO: Rename this Compilers phase) """
+    """ Compile Phase """
     # 1. Type Collector
     type_collector = TypeCollectorVisitor()
     type_collector.visit(ast, active_context_type, [])
@@ -59,10 +52,11 @@ def main():
 
     hierarchy.visit(ast, active_context_type, type_hierarchy)
     print('Errors 1: ', hierarchy.errors)
+    
     type_hierarchy.inheritance_resolve(active_context_type, 'Object')
     print('Errors 2: ', type_hierarchy.errors)
-    type_hierarchy_status = ast.validate(active_context_type)
 
+    type_hierarchy_status = ast.validate(active_context_type)
     print("Hierarchy Check status: ", type_hierarchy_status)
     
     # 4. Type Checking
@@ -71,14 +65,39 @@ def main():
     print('Errors 3: ', type_checker.errors)
     
     """ Symbol Table Summary """
-    symbol_table_headers = ["SYMBOL", "TYPE EXPR", "PARENT?", "ATTRS?", "METHOD NAMES"]
-    symbol_table_data = []
-    for type_ in active_context_type.types.keys():
-        symbol_table_data.append([type_, active_context_type.types[type_].name, active_context_type.types[type_].parent, list(active_context_type.types[type_].attributes.keys()), list(active_context_type.types[type_].methods.keys())])
+    # symbol_table_headers = ["SYMBOL", "TYPE EXPR", "PARENT?", "ATTRS?", "METHOD NAMES"]
+    # symbol_table_data = []
+    # for type_ in active_context_type.types.keys():
+    #    symbol_table_data.append([type_, active_context_type.types[type_].name, active_context_type.types[type_].parent, list(active_context_type.types[type_].attributes.keys()), list(active_context_type.types[type_].methods.keys())])
     
-    print("\n -----> SYMBOL TABLE <----- \n")
-    print(tabulate(symbol_table_data, headers=symbol_table_headers))
+    # print("\n -----> SYMBOL TABLE <----- \n")
+    # print(tabulate(symbol_table_data, headers=symbol_table_headers))
+
+
+app = Flask(__name__)
+CORS(app)
+
+@app.route('/compile', methods=['POST'])
+def compile():
+    # get code that the person has entered
+    try:
+        data = request.get_json()
+        code = data['code']
+    except:
+        return "Provide a valid code to compile", 500
+    
+    if code:
+        print('Processing code...')
+        process_input_code(code)
+        return jsonify([]), 200
+    else:
+        return "Provide a valid code to compile", 500
+
+
+@app.errorhandler(500)
+def internal_error(error):
+    return "Internal Server Exception", 500
 
     
 if __name__ == "__main__":
-    main()
+    app.run()
