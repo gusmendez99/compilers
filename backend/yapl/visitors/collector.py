@@ -1,7 +1,8 @@
+import settings
 import yapl.visitors.decorator as visitor
 from yapl.models.types import *
 from yapl.models.context import Context
-from yapl.visitors.utils import CheckError
+from yapl.utils import CheckError
 from yapl.models.nodes import (
     Node,
     ProgramNode,
@@ -107,7 +108,6 @@ class TypeHierarchy:
     def __init__(self):
         self.types_defined = {}
         self.ast_children_nodes = {}
-        self.errors = []
 
         self.define_type('Object')
         self.define_type('IO')
@@ -141,16 +141,11 @@ class TypeHierarchy:
         for child in self.ast_children_nodes[current_parent]:
             inheritance_resolve_visitor = InheritanceResolveVisitor()
             inheritance_resolve_visitor.visit(child, context_type)
-            if inheritance_resolve_visitor.errors:
-                self.errors.extend(inheritance_resolve_visitor.errors)
         for child in self.types_defined[current_parent]:
             self.inheritance_resolve(context_type, child)
 
 
 class Hierarchy:
-    def __init__(self):
-        self.errors = []
-    
     @visitor.on('node')
     def visit(self, node: Node, context: ContextType, type_hierarchy: TypeHierarchy):
         pass
@@ -171,7 +166,7 @@ class Hierarchy:
             node.parent = 'Object'
         if node.parent not in context.types.keys():
             # print("Type " + node.parent + " not defined")
-            self.errors.append(
+            settings.compile_errors.append(
                 CheckError(
                     text="Type " + node.parent + " not defined",
                     line=node.line
@@ -185,9 +180,6 @@ class Hierarchy:
 
 
 class InheritanceResolveVisitor:
-    def __init__(self):
-        self.errors = []
-
     @visitor.on('node')
     def visit(self, node: Node, context: ContextType):
         pass
@@ -211,7 +203,7 @@ class InheritanceResolveVisitor:
         for attribute in type_of_parent.attributes.values():
             if attribute in type_of_class.attributes.values():
                 # print('The attributes of a class can not be redefined in the child class')
-                self.errors.append(
+                settings.compile_errors.append(
                     CheckError(
                         text="The attributes of a class can not be redefined in the child class",
                         line=node.line
@@ -230,7 +222,7 @@ class InheritanceResolveVisitor:
                     founded = True
                     if method_of_parent.return_type != method_of_class.return_type:
                         # print("Return type of method must be the same of return type from inherits class")
-                        self.errors.append(
+                        settings.compile_errors.append(
                             CheckError(
                                 text="Return type of method must be the same of return type from inherits class",
                                 line=node.line
@@ -239,7 +231,7 @@ class InheritanceResolveVisitor:
                         return False
                     if len(method_of_parent.arguments) != len(method_of_class.arguments):
                         # print("The amount of arguments of method must be the same of method from inherits class")
-                        self.errors.append(
+                        settings.compile_errors.append(
                             CheckError(
                                 text="The amount of arguments of method must be the same of method from inherits class",
                                 line=node.line
@@ -251,7 +243,7 @@ class InheritanceResolveVisitor:
                         attr_2: Attribute = method_of_class.arguments[i]
                         if attr_1.attribute_type != attr_2.attribute_type:
                             # print("Type of attribute in position " + str(i) + " must be the same of the method from inherits class")
-                            self.errors.append(
+                            settings.compile_errors.append(
                                 CheckError(
                                     text="Type of attribute in position " + str(i) + " must be the same of the method from inherits class",
                                     line=node.line

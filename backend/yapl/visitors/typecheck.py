@@ -1,13 +1,11 @@
+import settings
 from yapl.models.nodes import *
 from yapl.models.types import *
 import yapl.visitors.decorator as visitor
-from yapl.visitors.utils import CheckError
+from yapl.utils import CheckError
 
 
 class TypeCheckVisitor:
-    def __init__(self):
-        self.errors = []
-
     @visitor.on('node')
     def visit(self, node: Node, context: ContextType, errors: list):
         pass
@@ -56,7 +54,7 @@ class TypeCheckVisitor:
         node.dynamic_type = node.body.return_type
         if not context.heir(context.getType(node.body.return_type), context.getType(node.return_type)):
             # print("Return type of method " + node.name + " must be " + node.return_type + ", not " + node.body.return_type)
-            self.errors.append(
+            settings.compile_errors.append(
                 CheckError(
                     text="Return type of method " + node.name + " must be " + node.return_type + ", not " + node.body.return_type,
                     line=node.line
@@ -78,7 +76,7 @@ class TypeCheckVisitor:
             context.defineSymbol(node.name, context.getType(node.attr_type))
             if not context.heir(context.getType(node.init_expr.return_type), context.getType(node.attr_type)):
                 # print("Return type of init expression must be " + node.attr_type + ", not " + node.init_expr.return_type)
-                self.errors.append(
+                settings.compile_errors.append(
                     CheckError(
                         text="Return type of init expression must be " + node.attr_type + ", not " + node.init_expr.return_type,
                         line=node.line
@@ -152,7 +150,7 @@ class TypeCheckVisitor:
             return False
         if node.expr.return_type in ['Int', 'Bool', 'String']:
             # print("Invalid use of function isvoid, type is " + node.expr.current_type)
-            self.errors.append(
+            settings.compile_errors.append(
                 CheckError(
                     text="Invalid use of function isvoid, type is " + node.expr.current_type,
                     line=node.line
@@ -169,7 +167,7 @@ class TypeCheckVisitor:
             return False
         if node.left.return_type != 'Int':
             # print("Left expression must be Int")
-            self.errors.append(
+            settings.compile_errors.append(
                 CheckError(
                     text="Left expression must be Int",
                     line=node.line
@@ -178,7 +176,7 @@ class TypeCheckVisitor:
             return False
         if node.right.return_type != 'Int':
             # print("Right expression must be Int")
-            self.errors.append(
+            settings.compile_errors.append(
                 CheckError(
                     text="Right expression must be Int",
                     line=node.line
@@ -204,7 +202,7 @@ class TypeCheckVisitor:
             return False
         if node.left.return_type != 'Int':
             # print("Left expression must be Int")
-            self.errors.append(
+            settings.compile_errors.append(
                 CheckError(
                     text="Left expression must be Int",
                     line=node.line
@@ -213,7 +211,7 @@ class TypeCheckVisitor:
             return False
         if node.right.return_type != 'Int':
             # print("Right expression must be Int")
-            self.errors.append(
+            settings.compile_errors.append(
                 CheckError(
                     text="Right expression must be Int",
                     line=node.line
@@ -232,7 +230,7 @@ class TypeCheckVisitor:
             return False
         if node.left.return_type != 'Int':
             # print("Left expression must be Int")
-            self.errors.append(
+            settings.compile_errors.append(
                 CheckError(
                     text="Left expression must be Int",
                     line=node.line
@@ -241,7 +239,7 @@ class TypeCheckVisitor:
             return False
         if node.right.return_type != 'Int':
             # print("Left expression must be Int")
-            self.errors.append(
+            settings.compile_errors.append(
                 CheckError(
                     text="Right expression must be Int",
                     line=node.line
@@ -260,7 +258,7 @@ class TypeCheckVisitor:
             return False
         if node.left.return_type != 'Int':
             # print("Left expression must be Int")
-            self.errors.append(
+            settings.compile_errors.append(
                 CheckError(
                     text="Left expression must be Int",
                     line=node.line
@@ -269,7 +267,7 @@ class TypeCheckVisitor:
             return False
         if node.right.return_type != 'Int':
             # print("Right expression must be Int")
-            self.errors.append(
+            settings.compile_errors.append(
                 CheckError(
                     text="Right expression must be Int",
                     line=node.line
@@ -288,7 +286,7 @@ class TypeCheckVisitor:
             return False
         if node.left.return_type != 'Int':
             # print("Left expression must be Int")
-            self.errors.append(
+            settings.compile_errors.append(
                 CheckError(
                     text="Left expression must be Int",
                     line=node.line
@@ -297,7 +295,7 @@ class TypeCheckVisitor:
             return False
         if node.right.return_type != 'Int':
             # print("Left expression must be Int")
-            self.errors.append(
+            settings.compile_errors.append(
                 CheckError(
                     text="Right expression must be Int",
                     line=node.line
@@ -317,7 +315,7 @@ class TypeCheckVisitor:
         if node.left.return_type in ['Int', 'Bool', 'String']:
             if node.left.return_type != node.right.return_type:
                 # print("Incorrect comparison")
-                self.errors.append(
+                settings.compile_errors.append(
                     CheckError(
                         text="Incorrect comparison",
                         line=node.line
@@ -330,7 +328,7 @@ class TypeCheckVisitor:
                 return True
         if node.right.return_type in ['Int', 'Bool', 'String']:
             # print("Incorrect comparison")
-            self.errors.append(
+            settings.compile_errors.append(
                 CheckError(
                     text="Incorrect comparison",
                     line=node.line
@@ -349,7 +347,7 @@ class TypeCheckVisitor:
             return False
         if node.left.return_type != 'Int':
             # print("Left expression must be Int")
-            self.errors.append(
+            settings.compile_errors.append(
                 CheckError(
                     text="Left expression must be Int",
                     line=node.line
@@ -358,7 +356,7 @@ class TypeCheckVisitor:
             return False
         if node.right.return_type != 'Int':
             # print("Right expression must be Int")
-            self.errors.append(
+            settings.compile_errors.append(
                 CheckError(
                     text="Right expression must be Int",
                     line=node.line
@@ -377,7 +375,7 @@ class TypeCheckVisitor:
             return False
         if node.left.return_type != 'Int':
             # print("Left expression must be Int")
-            self.errors.append(
+            settings.compile_errors.append(
                 CheckError(
                     text="Left expression must be Int",
                     line=node.line
@@ -386,7 +384,7 @@ class TypeCheckVisitor:
             return False
         if node.right.return_type != 'Int':
             # print("Left expression must be Int")
-            self.errors.append(
+            settings.compile_errors.append(
                 CheckError(
                     text="Right expression must be Int",
                     line=node.line
@@ -407,7 +405,7 @@ class TypeCheckVisitor:
             return False
         if node.expr.return_type != 'Bool':
             # print("Expression must be Int")
-            self.errors.append(
+            settings.compile_errors.append(
                 CheckError(
                     text="Expression must be Int",
                     line=node.line
@@ -424,7 +422,7 @@ class TypeCheckVisitor:
             return False
         if node.expr.return_type != 'Int':
             # print("Expression must be Int")
-            self.errors.append(
+            settings.compile_errors.append(
                 CheckError(
                     text="Expression must be Int",
                     line=node.line
@@ -454,7 +452,7 @@ class TypeCheckVisitor:
                 expr_type = context.getType(declaration_node.expr.return_type)
                 if not context.heir(expr_type, declaration_node_type):
                     # print('The type of the expression must inherit from the declaration type')
-                    self.errors.append(
+                    settings.compile_errors.append(
                         CheckError(
                             text="The type of the expression must inherit from the declaration type",
                             line=node.line
@@ -485,7 +483,7 @@ class TypeCheckVisitor:
             node.dynamic_type = node.expr.return_type
             if not context.heir(context.getType(node.expr.return_type), context.getType(node.type_token)):
                 # print("Return type of init expression must be " + node.expr + ", not " + node.expr.return_type)
-                self.errors.append(
+                settings.compile_errors.append(
                     CheckError(
                         text="Return type of init expression must be " + node.expr + ", not " + node.expr.return_type,
                         line=node.line
@@ -505,7 +503,7 @@ class TypeCheckVisitor:
             return False
         if node.predicate.return_type != 'Bool':
             # print("Type of predicate must be Bool, not " + node.predicate.return_type)
-            self.errors.append(
+            settings.compile_errors.append(
                 CheckError(
                     text="Type of predicate must be Bool, not " + node.predicate.return_type,
                     line=node.line
@@ -535,7 +533,7 @@ class TypeCheckVisitor:
             return False
         if node.predicate.return_type != 'Bool':
             # print("Predicate type must be Bool, not " + node.predicate.return_type)
-            self.errors.append(
+            settings.compile_errors.append(
                 CheckError(
                     text="Predicate type must be Bool, not " + node.predicate.return_type,
                     line=node.line
@@ -562,7 +560,7 @@ class TypeCheckVisitor:
             return False
         if not context.heir(context.getType(node.expr.return_type), t):
             # print("Type of expression must be " + t.name + ", not " + node.expr.return_type)
-            self.errors.append(
+            settings.compile_errors.append(
                 CheckError(
                     text="Type of expression must be " + t.name + ", not " + node.expr.return_type,
                     line=node.line
@@ -586,7 +584,7 @@ class TypeCheckVisitor:
                 return False
         if node.method not in context.getType(t0).methods:
             # print("Method " + node.method + " not defined in type " + t0)
-            self.errors.append(
+            settings.compile_errors.append(
                 CheckError(
                     text="Method " + node.method + " not defined in type " + t0,
                     line=node.line
@@ -597,7 +595,7 @@ class TypeCheckVisitor:
         for i in range(len(method.arguments)):
             if not context.heir(context.getType(node.arguments[i].return_type), context.getType(method.arguments[i].attribute_type)):
                 # print("Param " + str(i) + " type must be " + node.arguments[i].return_type + ", not " + method.arguments[i].attribute_type)
-                self.errors.append(
+                settings.compile_errors.append(
                     CheckError(
                         text="Param " + str(i) + " type must be " + node.arguments[i].return_type + ", not " + method.arguments[i].attribute_type,
                         line=node.line
@@ -627,7 +625,7 @@ class TypeCheckVisitor:
 
         if not context.heir(type_of_instance, dispatch_type):
             # print('The type of the instance must inherit from static declared')
-            self.errors.append(
+            settings.compile_errors.append(
                 CheckError(
                     text="The type of the instance must inherit from static declared",
                     line=node.line
@@ -638,7 +636,7 @@ class TypeCheckVisitor:
         # dispatch_arguments_types = [method for method in dispatch_type.methods.values()]
         if node.method not in dispatch_type.methods:
             # print('The specified type has not a method called ' + node.method)
-            self.errors.append(
+            settings.compile_errors.append(
                 CheckError(
                     text="The specified type has not a method called " + node.method,
                     line=node.line
@@ -652,7 +650,7 @@ class TypeCheckVisitor:
         for i in range(len(dispatch_method_args_types)):
             if not context.heir(arguments_types[i], dispatch_method_args_types[i]):
                 # print('The argument ' + str(i) + ' do not inherit from the type of the argument ' + str(i) + 'of the static type')
-                self.errors.append(
+                settings.compile_errors.append(
                     CheckError(
                         text='The argument ' + str(i) + ' do not inherit from the type of the argument ' + str(i) + 'of the static type',
                         line=node.line
@@ -692,7 +690,7 @@ class TypeCheckVisitor:
         node.dynamic_type = node.return_type
         if node.expr.return_type != 'Int':
             # print('The expression to print must be Int')
-            self.errors.append(
+            settings.compile_errors.append(
                 CheckError(
                     text='The expression to print must be Int',
                     line=node.line
@@ -709,7 +707,7 @@ class TypeCheckVisitor:
         node.dynamic_type = node.return_type
         if node.string_token.return_type != 'String':
             # print('The expression to print must be String')
-            self.errors.append(
+            settings.compile_errors.append(
                 CheckError(
                     text='The expression to print must be String',
                     line=node.line

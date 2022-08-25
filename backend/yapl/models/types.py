@@ -14,7 +14,7 @@ class Method:
         self.arguments = arguments
 
     def __eq__(self, other):
-        return self.arguments == other.argumets
+        return self.arguments == other.arguments
 
 
 class Type:

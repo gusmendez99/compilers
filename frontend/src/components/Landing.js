@@ -68,7 +68,13 @@ const Landing = () => {
     axios
       .request(options)
       .then(function (response) {
-        console.log("res.data", response.data);
+        setOutputDetails(null);
+        console.log("Response: ", response.data)
+        if (response.data && response.data.errors) {
+          const compileErrors = response.data.errors;
+          const errorsStr = compileErrors.join("\n");
+          setOutputDetails(errorsStr);
+        };
         setProcessing(false);
         showSuccessToast(`Compiled Successfully!`);
       })

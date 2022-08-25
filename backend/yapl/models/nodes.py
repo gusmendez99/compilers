@@ -1,5 +1,7 @@
+import settings
 from yapl.models.context import Context
 from yapl.models.types import Type, ContextType
+from yapl.utils import CheckError
 
 """
  Base node
@@ -17,6 +19,7 @@ class Node:
         self.dynamic_type = Type('Untype')
         self.inner_context = None
         self.line = -1
+        self.validation_error = None
 
     def set_line(self, line = -1):
         self.line = line
@@ -83,13 +86,31 @@ class ProgramNode(Node):
         for statement in self.class_list:
             if statement.parent and statement.parent in ELEMENTAL_TYPES:
                 if statement.parent == 'Int':
-                    print('A class cannot inherit from Int')
+                    # print('A class cannot inherit from Int')
+                    settings.compile_errors.append(
+                        CheckError(
+                            text='A class cannot inherit from Int',
+                            line=self.line
+                        )
+                    )
                     return False
                 if statement.parent == 'String':
-                    print('A class cannot inherit from String')
+                    # print('A class cannot inherit from String')
+                    settings.compile_errors.append(
+                        CheckError(
+                            text='A class cannot inherit from String',
+                            line=self.line
+                        )
+                    )
                     return False
                 if statement.parent == 'Bool':
-                    print('A class cannot inherit from Bool')
+                    # print('A class cannot inherit from Bool')
+                    settings.compile_errors.append(
+                        CheckError(
+                            text='A class cannot inherit from Bool',
+                            line=self.line
+                        )
+                    )
                     return False
 
         for statement in self.class_list:
@@ -148,7 +169,13 @@ class MethodNode(FeatureNode):
             return False
 
         if not context.define(self.name, [param.name for param in self.params]):
-            print(f'There were multiple definitions of method: {self.name}')
+            # print(f'There were multiple definitions of method: {self.name}')
+            settings.compile_errors.append(
+                CheckError(
+                    text=f'There were multiple definitions of method: {self.name}',
+                    line=self.line
+                )
+            )
             return False
 
         return True
@@ -165,7 +192,13 @@ class AttributeNode(FeatureNode):
         if self.init_expr and not self.init_expr.validate(context):
             return False
         if not context.define(self.name):
-            print(f'There were multiple definition of attribute: {self.name}')
+            # print(f'There were multiple definition of attribute: {self.name}')
+            settings.compile_errors.append(
+                CheckError(
+                    text=f'There were multiple definition of attribute: {self.name}',
+                    line=self.line
+                )
+            )
             return False
         return True
 
@@ -190,7 +223,13 @@ class ObjectNode(Node):
 
     def validate(self, context: Context):
         if not context.is_defined(self.name):
-            print(f'The object "{self.name}" is not defined in this scope')
+            # print(f'The object "{self.name}" is not defined in this scope')
+            settings.compile_errors.append(
+                CheckError(
+                    text=f'The object "{self.name}" is not defined in this scope',
+                    line=self.line
+                )
+            )
             return False
         return True
 
@@ -405,7 +444,13 @@ class DeclarationNode(ExpressionNode):
         if self.expr is not None and not self.expr.validate(context):
             return False
         if not context.define(self.idx_token):
-            print(f'There were multiple declaration of var with id: {self.idx_token}')
+            # print(f'There were multiple declaration of var with id: {self.idx_token}')
+            settings.compile_errors.append(
+                CheckError(
+                    text=f'There were multiple declaration of var with id: {self.idx_token}',
+                    line=self.line
+                )
+            )            
             return False
         return True
 
@@ -471,7 +516,13 @@ class AssignNode(AtomicNode):
         if not self.expr.validate(context):
             return False
         if not context.is_defined(self.idx_token):
-            print(f'Var with id "{self.idx_token}" is not defined')
+            # print(f'Var with id "{self.idx_token}" is not defined')
+            settings.compile_errors.append(
+                CheckError(
+                    text=f'Var with id "{self.idx_token}" is not defined',
+                    line=self.line
+                )
+            )       
             return False
         return True
 
