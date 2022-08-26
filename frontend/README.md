@@ -1,8 +1,8 @@
-# YAPL Editor - Compile and Execute code
+# YAPL Editor
 
 ⚡️ A YAPL code editor that compiles and runs your code on the web.
 
-<img src="https://github.com/gusmendez99/compilers/blob/main/editor/demo.png" />
+<img src="https://github.com/gusmendez99/compilers/blob/main/frontend/demo.png" />
 
 
 ## Installations and setup

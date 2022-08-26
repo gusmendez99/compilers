@@ -94,6 +94,15 @@ class TypeCheckVisitor:
 
     @visitor.when(ObjectNode)
     def visit(self, node: ObjectNode, context: ContextType, errors: list, current_type: Type):
+        if not context.getTypeFor(node.name):
+            settings.compile_errors.append(
+                CheckError(
+                    text=f"Type undefined for '{node.name}'",
+                    line=node.line
+                )
+            )
+            return False
+        
         node.return_type = context.getTypeFor(node.name).name
         node.dynamic_type = context.getTypeFor(node.name).name
         return True
@@ -556,6 +565,15 @@ class TypeCheckVisitor:
     @visitor.when(AssignNode)
     def visit(self, node: AssignNode, context: ContextType, errors, current_type: Type):
         t = context.getTypeFor(node.idx_token)
+        if not t:
+            settings.compile_errors.append(
+                CheckError(
+                    text=f"Type undefined for '{node.idx_token}'",
+                    line=node.line
+                )
+            )
+            return False
+
         if not self.visit(node.expr, context, errors, current_type):
             return False
         if not context.heir(context.getType(node.expr.return_type), t):
@@ -574,7 +592,16 @@ class TypeCheckVisitor:
     @visitor.when(DynamicDispatchNode)
     def visit(self, node: DynamicDispatchNode, context: ContextType, errors, current_type: Type):
         if type(node.instance) == str:
-            t0 = context.getTypeFor(node.instance).name
+            t0 = context.getTypeFor(node.instance)
+            if not t0:
+                settings.compile_errors.append(
+                    CheckError(
+                        text=f"Type undefined for '{node.instance}'",
+                        line=node.line
+                    )
+                )
+            t0 = t0.name
+        
         else:
             if not self.visit(node.instance, context, errors, current_type):
                 return False
@@ -616,6 +643,15 @@ class TypeCheckVisitor:
         type_of_instance_name = node.instance.return_type
         type_of_instance = context.getType(type_of_instance_name)
         dispatch_type = context.getType(node.dispatch_type)
+
+        if not dispatch_type:
+            settings.compile_errors.append(
+                CheckError(
+                    text=f"Type undefined for dispatch action '{node.dispatch_type}'",
+                    line=node.line
+                )
+            )
+            return False
 
         for expr_node in node.arguments:
             if not self.visit(expr_node, context, errors, current_type):

@@ -45,10 +45,10 @@ class ContextType:
         self.parent = parent
 
     def getType(self, type_name: str) -> Type:
-        return self.types[type_name]
+        return self.types[type_name] if type_name in self.types else None
 
     def getTypeFor(self, symbol: str) -> Type:
-        return self.symbols[symbol]
+        return self.symbols[symbol] if symbol in self.symbols else None
 
     def createChildContext(self):
         return ContextType(self, self.types, self.symbols)
@@ -70,5 +70,5 @@ class ContextType:
         return solve
 
     def heir(self, type1: Type, type2: Type):
-        return type2.name in self.parentsOfType(type1)
+        return type2.name in self.parentsOfType(type1) if type1 and type2 else None
 
