@@ -1,13 +1,13 @@
-# Compilers Lab 1
-ANTLR -> Parser/Lexer -> AST -> Visitors -> Symbol Table
+# Compilers Project 1 - Semantic Analysis
+ANTLR -> Parser/Lexer -> AST -> Visitors -> Symbol Table -> Types Validation
 
 
 ## :ledger: Index
 
-- [Compilers Lab 1](#compilers-lab-1)
+- [Compilers Project 1 - Semantic Analysis](#compilers-project-1---semantic-analysis)
   - [:ledger: Index](#ledger-index)
   - [:beginner: About](#beginner-about)
-  - [:electric_plug: Installation](#electric_plug-installation)
+  - [:electric_plug: Installations & Setup](#electric_plug-installations--setup)
   - [:zap: Usage](#zap-usage)
     - [:rocket: Run](#rocket-run)
     - [:red_circle: Type Checking & Semantic Rules](#red_circle-type-checking--semantic-rules)
@@ -15,29 +15,43 @@ ANTLR -> Parser/Lexer -> AST -> Visitors -> Symbol Table
   - [:lock: License](#lock-license)
 
 ##  :beginner: About
-Implementation of Symbol Table & Hierarchy Checking, based on YAPL Language Specification. Made with Python...
+Implementation of Semantic Analysis, based on YAPL Language Specification. Made with Python, Flask & React.
 
-##  :electric_plug: Installation
+##  :electric_plug: Installations & Setup
 
-Just need to install `requirements.txt` dependencies. ANTLR4 compiling steps for lexer/parser generation were omitted, but you can generate them with `make all`.
+**Flask**
+
+Just need to install `requirements.txt` dependencies for Flask & ANTLR.
+
+
+**React**
+
+- `yarn install`
+- Create a `.env` file and set `REACT_APP_API_URL` value, localhost is default value
+
 
 ## :zap: Usage
 
 ###  :rocket: Run
 
+**Flask**
+
 ```
-python3 main.py TEST_FILE
+python3 app.py
+```
+
+**React**
+
+```
+yarn start
 ```
 
 If everything it's OK, the Symbol Table may look like the following outputs:
 
-**Hello World**
 
-![hello_world](https://github.com/gusmendez99/compilers/blob/main/images/hello.png?raw=true)
+**Monaco Editor**
 
-**Fibonacci**
-
-![fibonacci](https://github.com/gusmendez99/compilers/blob/main/images/fibonacci.png?raw=true)
+![editor](https://github.com/gusmendez99/compilers/blob/main/frontend/demo.png?raw=true)
 
 
 ###  :red_circle: Type Checking & Semantic Rules
@@ -94,6 +108,14 @@ If everything it's OK, the Symbol Table may look like the following outputs:
 - [x] Special classes
   - [x] IO
   - [x] IO, Int, String & Bool (with its core methods)
+
+
+**TODO: Extras**
+After a successful project presentation, we could add the following extras:
+
+- Capture all errors list
+- Add more test files
+
 
 ## :star2: Author
 
