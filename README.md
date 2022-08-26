@@ -111,6 +111,7 @@ If everything it's OK, the YAPL Compiler Web Editor must look like this:
 
 
 **TODO: Extras**
+
 After a successful project presentation, we could add the following extras:
 
 - Capture all errors list
