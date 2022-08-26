@@ -51,7 +51,7 @@ If everything it's OK, the YAPL Compiler Web Editor must look like this:
 
 **Monaco Editor**
 
-![editor](https://github.com/gusmendez99/compilers/blob/main/frontend/demo.png?raw=true)
+![demo](https://github.com/gusmendez99/compilers/blob/main/images/demo.png?raw=true)
 
 
 ###  :red_circle: Type Checking & Semantic Rules
