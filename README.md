@@ -46,7 +46,7 @@ python3 app.py
 yarn start
 ```
 
-If everything it's OK, the Symbol Table may look like the following outputs:
+If everything it's OK, the YAPL Compiler Web Editor must look like this:
 
 
 **Monaco Editor**
