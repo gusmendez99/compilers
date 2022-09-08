@@ -16,6 +16,7 @@ from yapl.visitors.collector import (
     Hierarchy,
     TypeHierarchy
 )
+from yapl.visitors.intermediate import IntermediateVisitor
 from yapl.visitors.typecheck import TypeCheckVisitor
 from yapl.utils import CheckError
 
@@ -61,26 +62,21 @@ def process_input_code(code = ""):
     type_hierarchy = TypeHierarchy()
 
     hierarchy.visit(ast, active_context_type, type_hierarchy)
-    print('Phase 1: ', settings.compile_errors)
+    # print('Phase 1: ', settings.compile_errors)
     
     type_hierarchy.inheritance_resolve(active_context_type, 'Object')
-    print('Phase 2: ', settings.compile_errors)
+    # print('Phase 2: ', settings.compile_errors)
 
     type_hierarchy_status = ast.validate(active_context_type)
-    print("Hierarchy Check status: ", type_hierarchy_status)
+    # print("Hierarchy Check status: ", type_hierarchy_status)
     
     # 4. Type Checking
     type_checker = TypeCheckVisitor()
     type_checker.visit(ast, active_context_type, [])
-    print('Phase 3: ', settings.compile_errors)
-    
-    """ Symbol Table Summary """
-    # symbol_table_headers = ["SYMBOL", "TYPE EXPR", "PARENT?", "ATTRS?", "METHOD NAMES"]
-    # symbol_table_data = []
+    # print('Phase 3: ', settings.compile_errors)
+
     validate_main = (MAIN_TYPE in active_context_type.types.keys() and active_context_type.types[MAIN_TYPE].name == MAIN_TYPE and MAIN_FUNCTION in active_context_type.types[MAIN_TYPE].methods.keys())
     
-    # print("\n -----> SYMBOL TABLE <----- \n")
-    # print(tabulate(symbol_table_data, headers=symbol_table_headers))
     if not validate_main:
         settings.compile_errors.append(
             CheckError(
@@ -88,9 +84,32 @@ def process_input_code(code = ""):
                 line=-1
             )
         )
+        return settings.compile_errors
 
-    return settings.compile_errors
+    # 5. Intermediate Code
+    intemediate_code = IntermediateVisitor()
+    result = intemediate_code.visit(ast)
+    
+    # Types list
+    print("\n -----> TYPES SUMMARY <----- \n")
+    print(result.dot_types, "\n")
 
+    # Types info (Symbol Table)
+    print("\n -----> SYMBOLS TABLE <----- \n")
+    for _type in result.dot_types:
+        print(f"{_type.name}: has ({_type.attrs_count}) attrs, and ({_type.object_length}) as object length")
+        print(_type.class_dispatch_table([]), "\n")
+    
+    print("\n -----> DATA TABLE <----- \n")
+    for data_node in result.dot_data:
+        print(data_node)
+
+    print("\n -----> FUNCTIONS TABLE <----- \n")
+    for function_node in result.functions:
+        print("\n", function_node)
+        print("Local vars: ", function_node.local_vars)
+
+    return []
 
 app = Flask(__name__)
 CORS(app)
