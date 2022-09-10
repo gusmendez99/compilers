@@ -23,47 +23,47 @@ class TypeCollectorVisitor:
         for c in node.class_list:
             self.visit(c, context, errors)
 
-        context.createType("Object")
-        context.createType("Int")
-        context.createType("String")
-        context.createType("Bool")
-        context.createType("IO")
-        context.createType("SELF_TYPE")
+        context.create_type("Object")
+        context.create_type("Int")
+        context.create_type("String")
+        context.create_type("Bool")
+        context.create_type("IO")
+        context.create_type("SELF_TYPE")
 
-        context.getType("IO").defineMethod("in_string", "SELF_TYPE", [], [])
-        context.getType("IO").defineMethod("in_int", "SELF_TYPE", [], [])
-        context.getType("IO").defineMethod("out_string", "IO", ["x"], ["String"])
-        context.getType("IO").defineMethod("out_int", "IO", ["x"], ["Int"])
+        context.get_type("IO").define_method("in_string", "SELF_TYPE", [], [])
+        context.get_type("IO").define_method("in_int", "SELF_TYPE", [], [])
+        context.get_type("IO").define_method("out_string", "IO", ["x"], ["String"])
+        context.get_type("IO").define_method("out_int", "IO", ["x"], ["Int"])
 
-        context.getType("Object").defineMethod("abort", "Object", [], [])
-        context.getType("Object").defineMethod("type_name", "String", [], [])
-        context.getType("Object").defineMethod("copy", "SELF_TYPE", [], [])
+        context.get_type("Object").define_method("abort", "Object", [], [])
+        context.get_type("Object").define_method("type_name", "String", [], [])
+        context.get_type("Object").define_method("copy", "SELF_TYPE", [], [])
 
-        context.getType("IO").defineMethod("abort", "Object", [], [])
-        context.getType("IO").defineMethod("type_name", "String", [], [])
-        context.getType("IO").defineMethod("copy", "SELF_TYPE", [], [])
+        context.get_type("IO").define_method("abort", "Object", [], [])
+        context.get_type("IO").define_method("type_name", "String", [], [])
+        context.get_type("IO").define_method("copy", "SELF_TYPE", [], [])
 
-        context.getType("Int").defineMethod("abort", "Object", [], [])
-        context.getType("Int").defineMethod("type_name", "String", [], [])
-        context.getType("Int").defineMethod("copy", "SELF_TYPE", [], [])
+        context.get_type("Int").define_method("abort", "Object", [], [])
+        context.get_type("Int").define_method("type_name", "String", [], [])
+        context.get_type("Int").define_method("copy", "SELF_TYPE", [], [])
 
-        context.getType("String").defineMethod("abort", "Object", [], [])
-        context.getType("String").defineMethod("type_name", "String", [], [])
-        context.getType("String").defineMethod("copy", "SELF_TYPE", [], [])
+        context.get_type("String").define_method("abort", "Object", [], [])
+        context.get_type("String").define_method("type_name", "String", [], [])
+        context.get_type("String").define_method("copy", "SELF_TYPE", [], [])
 
-        context.getType("Bool").defineMethod("abort", "Object", [], [])
-        context.getType("Bool").defineMethod("type_name", "String", [], [])
-        context.getType("Bool").defineMethod("copy", "SELF_TYPE", [], [])
+        context.get_type("Bool").define_method("abort", "Object", [], [])
+        context.get_type("Bool").define_method("type_name", "String", [], [])
+        context.get_type("Bool").define_method("copy", "SELF_TYPE", [], [])
 
-        context.getType("String").defineMethod("length", "Int", [], [])
-        context.getType("String").defineMethod("concat", "String", ["s"], ["String"])
-        context.getType("String").defineMethod("substr", "String", ["i", "lex"], ["Int", "Int"])
+        context.get_type("String").define_method("length", "Int", [], [])
+        context.get_type("String").define_method("concat", "String", ["s"], ["String"])
+        context.get_type("String").define_method("substr", "String", ["i", "lex"], ["Int", "Int"])
 
     @visitor.when(ClassNode)
     def visit(self, node: ClassNode, context: ContextType, errors):
-        context.createType(node.name)
+        context.create_type(node.name)
         if node.parent != None:
-            context.getType(node.name).parent = node.parent
+            context.get_type(node.name).parent = node.parent
 
 
 class TypeBuilderVisitor:
@@ -79,13 +79,13 @@ class TypeBuilderVisitor:
 
     @visitor.when(ClassNode)
     def visit(self, node: ClassNode, context: ContextType, errors):
-        current_type = context.getType(node.name)
+        current_type = context.get_type(node.name)
         for feature in node.features:
             self.visit(feature, context, errors, current_type)
 
     @visitor.when(AttributeNode)
     def visit(self, node: AttributeNode, context: ContextType, errors, current_type: Type):
-        current_type.defineAttribute(node.name, node.attr_type)
+        current_type.define_attribute(node.name, node.attr_type)
 
     @visitor.when(MethodNode)
     def visit(self, node: MethodNode, context: ContextType, errors, current_type: Type):
@@ -95,13 +95,13 @@ class TypeBuilderVisitor:
             name, type = self.visit(arg, context, errors, current_type)
             args.append(name)
             argsTypes.append(type)
-        current_type.defineMethod(node.name, node.method_type, args, argsTypes)
+        current_type.define_method(node.name, node.method_type, args, argsTypes)
 
     @visitor.when(ParamNode)
     def visit(self, node: ParamNode, context: ContextType, errors, current_type: Type):
-        if context.getType(node.param_type) == "SELF_TYPE":
+        if context.get_type(node.param_type) == "SELF_TYPE":
             return (node.name, current_type)
-        return (node.name, context.getType(node.param_type).name)
+        return (node.name, context.get_type(node.param_type).name)
 
 
 class TypeHierarchy:
@@ -195,8 +195,8 @@ class InheritanceResolveVisitor:
         if parent_class is None:
             parent_class = 'Object'
 
-        type_of_parent = context.getType(parent_class)
-        type_of_class = context.getType(node.name)
+        type_of_parent = context.get_type(parent_class)
+        type_of_class = context.get_type(node.name)
 
         type_of_class.parent = parent_class
 
@@ -211,7 +211,7 @@ class InheritanceResolveVisitor:
                 )
                 return False
             else:
-                type_of_class.defineAttribute(attribute.name, attribute.attribute_type)
+                type_of_class.define_attribute(attribute.name, attribute.attribute_type)
 
         for method_of_parent in type_of_parent.methods.values():
             founded = False
@@ -255,12 +255,9 @@ class InheritanceResolveVisitor:
             else:
                 arguments = [arg.name for arg in method_of_parent.arguments]
                 arguments_types = [arg.attribute_type for arg in method_of_parent.arguments]
-                type_of_class.defineMethod(method_of_parent.name, method_of_parent.return_type, arguments,
+                type_of_class.define_method(method_of_parent.name, method_of_parent.return_type, arguments,
                                            arguments_types)
 
 
         return True
-
-
-
 

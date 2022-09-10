@@ -1,4 +1,6 @@
 import settings
+from dataclasses import dataclass
+
 from yapl.models.context import Context
 from yapl.models.types import Type, ContextType
 from yapl.utils import CheckError
@@ -7,23 +9,26 @@ from yapl.utils import CheckError
  Base node
 """
 
-ELEMENTAL_TYPES = ['Int', 'String', 'Bool']
+ELEMENTAL_TYPES = ["Int", "String", "Bool"]
+IO_TYPES = ["IO"]
+
 
 class Node:
     """
     AST base node
     """
+
     def __init__(self):
         self.context_type = ContextType()
-        self.return_type = Type('Untype')
-        self.dynamic_type = Type('Untype')
+        self.return_type = Type("Untype")
+        self.dynamic_type = Type("Untype")
         self.inner_context = None
         self.line = -1
         self.validation_error = None
 
-    def set_line(self, line = -1):
+    def set_line(self, line=-1):
         self.line = line
-    
+
     def validate(self, context: Context) -> bool:
         """
         Validates AST, semantically correct
@@ -36,6 +41,8 @@ class Node:
 """
  YAPL nodes
 """
+
+
 class ProgramNode(Node):
     def __init__(self, class_list):
         super(Node, self).__init__()
@@ -47,68 +54,67 @@ class ProgramNode(Node):
 
     def initialize_context(self):
         # Declaring the methods of Object
-        self.context.functions['abort'] = []
-        self.context.functions['type_name'] = []
-        self.context.functions['copy'] = []
+        self.context.functions["abort"] = []
+        self.context.functions["type_name"] = []
+        self.context.functions["copy"] = []
 
     def initialize_builtin_types(self):
-        # Delare io
+        # Declare io
         io_context = self.context.create_child_context()
-        io_context.functions['in_string'] = []
-        io_context.functions['in_int'] = []
-        io_context.functions['out_string'] = ['x']
-        io_context.functions['out_int'] = ['x']
-        self.context_map['IO'] = io_context
+        io_context.functions["in_string"] = []
+        io_context.functions["in_int"] = []
+        io_context.functions["out_string"] = ["x"]
+        io_context.functions["out_int"] = ["x"]
+        self.context_map["IO"] = io_context
 
         int_context = self.context.create_child_context()
-        self.context_map['Int'] = int_context
+        self.context_map["Int"] = int_context
 
         string_context = self.context.create_child_context()
-        self.context_map['String'] = string_context
+        self.context_map["String"] = string_context
 
         bool_context = self.context.create_child_context()
-        self.context_map['Bool'] = bool_context
+        self.context_map["Bool"] = bool_context
 
         object_context = self.context.create_child_context()
-        self.context_map['Object'] = object_context
+        self.context_map["Object"] = object_context
 
         self_type_context = self.context.create_child_context()
-        self.context_map['SELF_TYPE'] = self_type_context
+        self.context_map["SELF_TYPE"] = self_type_context
 
     def __repr__(self):
         s = "Program:\n"
         for c in self.class_list:
-            s += str(c) + '\n'
+            s += str(c) + "\n"
         return s
 
-    def validate(self, context_attributes_inheritance: ContextType, context: Context = None):
+    def validate(
+        self, context_attributes_inheritance: ContextType, context: Context = None
+    ):
         self.context_type = context_attributes_inheritance
         for statement in self.class_list:
             if statement.parent and statement.parent in ELEMENTAL_TYPES:
-                if statement.parent == 'Int':
+                if statement.parent == "Int":
                     # print('A class cannot inherit from Int')
                     settings.compile_errors.append(
                         CheckError(
-                            text='A class cannot inherit from Int',
-                            line=self.line
+                            text="A class cannot inherit from Int", line=self.line
                         )
                     )
                     return False
-                if statement.parent == 'String':
+                if statement.parent == "String":
                     # print('A class cannot inherit from String')
                     settings.compile_errors.append(
                         CheckError(
-                            text='A class cannot inherit from String',
-                            line=self.line
+                            text="A class cannot inherit from String", line=self.line
                         )
                     )
                     return False
-                if statement.parent == 'Bool':
+                if statement.parent == "Bool":
                     # print('A class cannot inherit from Bool')
                     settings.compile_errors.append(
                         CheckError(
-                            text='A class cannot inherit from Bool',
-                            line=self.line
+                            text="A class cannot inherit from Bool", line=self.line
                         )
                     )
                     return False
@@ -116,8 +122,10 @@ class ProgramNode(Node):
         for statement in self.class_list:
             if not statement.validate(self.context):
                 return False
-            self.context_map[statement.name] = self.context.children[len(self.context.children) - 1]
-        
+            self.context_map[statement.name] = self.context.children[
+                len(self.context.children) - 1
+            ]
+
         return True
 
 
@@ -133,7 +141,7 @@ class ClassNode(Node):
 
     def validate(self, context) -> bool:
         self.inner_context = context.create_child_context()
-        self.inner_context.define('self')
+        self.inner_context.define("self")
         for attr in self.context_type.types[self.name].attributes.keys():
             self.inner_context.define(attr)
         for feature in self.features:
@@ -172,8 +180,8 @@ class MethodNode(FeatureNode):
             # print(f'There were multiple definitions of method: {self.name}')
             settings.compile_errors.append(
                 CheckError(
-                    text=f'There were multiple definitions of method: {self.name}',
-                    line=self.line
+                    text=f"There were multiple definitions of method: {self.name}",
+                    line=self.line,
                 )
             )
             return False
@@ -195,8 +203,8 @@ class AttributeNode(FeatureNode):
             # print(f'There were multiple definition of attribute: {self.name}')
             settings.compile_errors.append(
                 CheckError(
-                    text=f'There were multiple definition of attribute: {self.name}',
-                    line=self.line
+                    text=f"There were multiple definition of attribute: {self.name}",
+                    line=self.line,
                 )
             )
             return False
@@ -227,7 +235,7 @@ class ObjectNode(Node):
             settings.compile_errors.append(
                 CheckError(
                     text=f'The object "{self.name}" is not defined in this scope',
-                    line=self.line
+                    line=self.line,
                 )
             )
             return False
@@ -294,7 +302,7 @@ class IsVoidNode(ExpressionNode):
 
     @property
     def get_type(self):
-        return 'Bool'
+        return "Bool"
 
     def validate(self, context: Context):
         return self.expr.validate(context)
@@ -303,6 +311,7 @@ class IsVoidNode(ExpressionNode):
 """
  Operators
 """
+
 
 class BinaryOperatorNode(ExpressionNode):
     def __init__(self, left: ExpressionNode, right: ExpressionNode):
@@ -341,7 +350,7 @@ class PlusNode(BinaryOperatorNode):
         super(PlusNode, self).__init__(left, right)
         self.left = left
         self.right = right
-        self.operator = '+'
+        self.operator = "+"
 
 
 class MinusNode(BinaryOperatorNode):
@@ -349,7 +358,7 @@ class MinusNode(BinaryOperatorNode):
         super().__init__(left, right)
         self.left = left
         self.right = right
-        self.operator = '-'
+        self.operator = "-"
 
 
 class StarNode(BinaryOperatorNode):
@@ -357,7 +366,7 @@ class StarNode(BinaryOperatorNode):
         super(StarNode, self).__init__(left, right)
         self.left = left
         self.right = right
-        self.operator = '*'
+        self.operator = "*"
 
 
 class DivNode(BinaryOperatorNode):
@@ -365,7 +374,7 @@ class DivNode(BinaryOperatorNode):
         super(DivNode, self).__init__(left, right)
         self.left = left
         self.right = right
-        self.operator = '/'
+        self.operator = "/"
 
 
 class EqualNode(BinaryOperatorNode):
@@ -373,7 +382,7 @@ class EqualNode(BinaryOperatorNode):
         super(EqualNode, self).__init__(left, right)
         self.left = left
         self.right = right
-        self.operator = '='
+        self.operator = "="
 
 
 class LessThanNode(BinaryOperatorNode):
@@ -381,7 +390,7 @@ class LessThanNode(BinaryOperatorNode):
         super(LessThanNode, self).__init__(left, right)
         self.left = left
         self.right = right
-        self.operator = '<'
+        self.operator = "<"
 
 
 class LessEqualNode(BinaryOperatorNode):
@@ -389,7 +398,7 @@ class LessEqualNode(BinaryOperatorNode):
         super(LessEqualNode, self).__init__(left, right)
         self.left = left
         self.right = right
-        self.operator = '<='
+        self.operator = "<="
 
 
 class NegationNode(UnaryOperator):
@@ -447,10 +456,10 @@ class DeclarationNode(ExpressionNode):
             # print(f'There were multiple declaration of var with id: {self.idx_token}')
             settings.compile_errors.append(
                 CheckError(
-                    text=f'There were multiple declaration of var with id: {self.idx_token}',
-                    line=self.line
+                    text=f"There were multiple declaration of var with id: {self.idx_token}",
+                    line=self.line,
                 )
-            )            
+            )
             return False
         return True
 
@@ -520,9 +529,9 @@ class AssignNode(AtomicNode):
             settings.compile_errors.append(
                 CheckError(
                     text=f'Var with id "{self.idx_token}" is not defined',
-                    line=self.line
+                    line=self.line,
                 )
-            )       
+            )
             return False
         return True
 
@@ -622,3 +631,55 @@ class ScanNode(AtomicNode):
 
     def validate(self, context: Context) -> bool:
         return True
+
+
+""" TAC Node """
+
+
+class QuadrupleItemNode:
+    def __init__(self, address=None, code=None, next=None, true=None, false=None):
+        self.address: AddressNode = address
+        self.code: list = code or []
+        self.next = next
+        self.true = true
+        self.false = false
+
+    def safe_values(self, address=None, code=None, next=None, true=None, false=None):
+        self.address = address or self.address
+        self.code = code or self.code
+        self.next = next or self.next
+        self.true = true or self.true
+        self.false = false or self.false
+
+        return self
+
+    def __str__(self) -> str:
+        return "{}".format(
+            ""
+            if len(self.code) == 0
+            else "{}".format(
+                "\n".join("{}".format(quadruple) for quadruple in self.code)
+            )
+        )
+
+
+@dataclass
+class QuadrupleNode:
+    op: str
+    arg_1: str
+    arg_2: str = None
+    res: str = None
+
+    def __str__(self) -> str:
+        if not self.res:
+            if self.op == "if":
+                return "{} {} {}".format(self.op, self.arg_1, self.arg_2)
+            elif self.arg_2:
+                return "{} {} {}".format(self.arg_1, self.op, self.arg_2)
+            else:
+                return "{} {}".format(self.op, self.arg_1)
+        if self.arg_2:
+            return "{} = {} {} {}".format(self.res, self.arg_1, self.op, self.arg_2)
+        if self.op == "=":
+            return "{} {} {}".format(self.res, self.op, self.arg_1)
+        return "{} = {} {}".format(self.res, self.op, self.arg_1)

@@ -27,8 +27,11 @@ class Main inherits IO {
 
 const Landing = () => {
   const [code, setCode] = useState(YAPL_HELLO_WORLD);
+  const [codeResult, setCodeResult] = useState("");
   const [customInput, setCustomInput] = useState("");
+  // Outputs
   const [outputDetails, setOutputDetails] = useState(null);
+
   const [processing, setProcessing] = useState(null);
   const [theme, setTheme] = useState("cobalt");
   const [language, setLanguage] = useState(languageOptions[0]);
@@ -50,6 +53,11 @@ const Landing = () => {
     }
   };
 
+  const handleClear = () => {
+    setCodeResult("");
+    setOutputDetails("");
+  }
+
   const handleCompile = () => {
     setProcessing(true);
     const data = {
@@ -69,11 +77,21 @@ const Landing = () => {
       .request(options)
       .then(function (response) {
         setOutputDetails(null);
-        console.log("Response: ", response.data)
-        if (response.data && response.data.errors) {
-          const compileErrors = response.data.errors;
-          const errorsStr = compileErrors.join("\n");
-          setOutputDetails(errorsStr);
+
+        if (response.data) {
+          try {
+            // console.log("Response: ", response.data)
+            // const compileErrors = response.data.errors;
+            // const errorsStr = compileErrors.join("\n");
+            const compileInfo = response.data.info;
+            const compileCodeResult = response.data.result;
+            
+            // setOutputDetails("");
+            setOutputDetails(compileInfo);
+            setCodeResult(compileCodeResult);
+          } catch (err) {
+            console.log(err)
+          }
         };
         setProcessing(false);
         showSuccessToast(`Compiled Successfully!`);
@@ -165,9 +183,20 @@ const Landing = () => {
             language={language?.value}
             theme={theme.value}
           />
+          <br/>
+          <h1 className="w-full font-bold text-xl bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-700 mb-2 px-2">
+            3 Address Code (TAC)
+          </h1>
+          <br/>
+          <CodeEditorWindow
+            code={codeResult}
+            language={"txt"}
+            theme={theme.value}
+          />
+          
         </div>
 
-        <div className="right-container flex flex-shrink-0 w-[30%] flex-col">
+        <div className="right-container flex flex-shrink-0 w-[40%] flex-col">
           <OutputWindow outputDetails={outputDetails} />
           <div className="flex flex-col items-end">
             <CustomInput
@@ -183,6 +212,16 @@ const Landing = () => {
               )}
             >
               {processing ? "Processing..." : "Compile and Execute"}
+            </button>
+            <button
+              onClick={handleClear}
+              disabled={!code}
+              className={classnames(
+                "mt-4 border-2 border-black z-10 rounded-md shadow-[5px_5px_0px_0px_rgba(0,0,0)] px-4 py-2 hover:shadow transition duration-200 bg-blue flex-shrink-0",
+                !code ? "opacity-50" : ""
+              )}
+            >
+              {processing ? "Processing..." : "Clear"}
             </button>
           </div>
           {!outputDetails && <OutputDetails outputDetails={outputDetails} />}

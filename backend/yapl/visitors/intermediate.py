@@ -1,138 +1,119 @@
 import yapl.visitors.decorator as visitor
+
+from yapl.grammar.YAPLParser import YAPLParser
+from yapl.grammar.YAPL2Parser import YAPLParser as YAPL2Parser
 from yapl.grammar.YAPLVisitor import YAPLVisitor
+from yapl.grammar.YAPL2Visitor import YAPLVisitor as YAPL2Visitor
 
 import yapl.models.nodes as base
 import yapl.models.intermediate as intermediate
 
+import settings
+
+from yapl.models.symbols import SymbolsTable
+from yapl.models.tac import Label, Function, Name, Constant, Temp
+from yapl.models.nodes import QuadrupleItemNode, QuadrupleNode
+from uuid import uuid4
+
 
 class DeclarationsVisitor(YAPLVisitor):
     def __init__(self, node: base.ProgramNode):
-        self.methodsLists = {
+        self.methods_lists = {
             "Object": [
                 intermediate.MethodNode("init_Object", "init_Object", 0),
                 intermediate.MethodNode("abort", "def_Object_abort", 1),
                 intermediate.MethodNode("type_name", "def_Object_type_name", 2),
-                intermediate.MethodNode("copy", "def_Object_copy", 3)],
+                intermediate.MethodNode("copy", "def_Object_copy", 3),
+            ],
             "Int": [intermediate.MethodNode("init_Int", "init_Int", 0)],
             "Bool": [intermediate.MethodNode("init_Bool", "init_Bool", 0)],
             "String": [
                 intermediate.MethodNode("init_String", "init_String", 0),
                 intermediate.MethodNode("length", "def_String_length", 1),
                 intermediate.MethodNode("concat", "def_String_concat", 2),
-                intermediate.MethodNode("substr", "def_String_substr", 3)
+                intermediate.MethodNode("substr", "def_String_substr", 3),
             ],
             "IO": [
                 intermediate.MethodNode("init_IO", "init_IO", 0),
                 intermediate.MethodNode("in_string", "def_IO_in_string", 1),
                 intermediate.MethodNode("in_int", "def_IO_in_int", 2),
                 intermediate.MethodNode("out_string", "def_IO_out_string", 3),
-                intermediate.MethodNode("out_int", "def_IO_out_int", 4)]
+                intermediate.MethodNode("out_int", "def_IO_out_int", 4),
+            ],
         }
-        self.methodsDict = {
-            "Object": {
-                "abort": None,
-                "type_name": None,
-                "copy": None
-            },
+        self.methods_dict = {
+            "Object": {"abort": None, "type_name": None, "copy": None},
             "IO": {
                 "in_string": None,
                 "in_int": None,
                 "out_string": None,
-                "out_int": None
+                "out_int": None,
             },
-            "String": {
-                "length": None,
-                "concat": None,
-                "substr": None
-            },
+            "String": {"length": None, "concat": None, "substr": None},
             "Int": {},
-            "Bool": {}
+            "Bool": {},
         }
-        self.attrsList = {
-            "Object": [],
-            "Int": [],
-            "Bool": [],
-            "String": [],
-            "IO": []
-        }
-        self.attrsDict = {
-            "IO": {},
-            "Object": {},
-            "String": {},
-            "Int": {},
-            "Bool": {}
-        }
+        self.attrs_list = {"Object": [], "Int": [], "Bool": [], "String": [], "IO": []}
+        self.attrs_dict = {"IO": {}, "Object": {}, "String": {}, "Int": {}, "Bool": {}}
         self.dot_types = [
-            intermediate.TypeNode("Object", 1, self.attrsList["Object"], self.methodsLists["Object"]),
-            intermediate.TypeNode("Int", 2, self.attrsList["Int"], self.methodsLists["Int"]),
-            intermediate.TypeNode("Bool", 3, self.attrsList["Bool"], self.methodsLists["Bool"]),
-            intermediate.TypeNode("String", 4, self.attrsList["String"], self.methodsLists["String"]),
-            intermediate.TypeNode("IO", 5, self.attrsList["IO"], self.methodsLists["IO"])
+            intermediate.TypeNode(
+                "Object", 1, self.attrs_list["Object"], self.methods_lists["Object"]
+            ),
+            intermediate.TypeNode(
+                "Int", 2, self.attrs_list["Int"], self.methods_lists["Int"]
+            ),
+            intermediate.TypeNode(
+                "Bool", 3, self.attrs_list["Bool"], self.methods_lists["Bool"]
+            ),
+            intermediate.TypeNode(
+                "String", 4, self.attrs_list["String"], self.methods_lists["String"]
+            ),
+            intermediate.TypeNode(
+                "IO", 5, self.attrs_list["IO"], self.methods_lists["IO"]
+            ),
         ]
         self.class_tag = 6
         for c in node.class_list:
             self.visit_class(c)
 
     def visit_class(self, node: base.ClassNode):
-        self.methodsDict[node.name] = {}
-        self.attrsDict[node.name] = {}
-        self.attrsList[node.name] = []
-        self.methodsLists[node.name] = []
+        self.methods_dict[node.name] = {}
+        self.attrs_dict[node.name] = {}
+        self.attrs_list[node.name] = []
+        self.methods_lists[node.name] = []
         for f in node.features:
             if type(f) == base.AttributeNode:
                 self.visit_attr(f, node.name)
             elif type(f) == base.MethodNode:
                 self.visit_method(f, node.name)
-        self.dot_types.append(intermediate.TypeNode(node.name, self.class_tag,
-                                          self.attrsList[node.name], self.methodsLists[node.name]))
+        self.dot_types.append(
+            intermediate.TypeNode(
+                node.name,
+                self.class_tag,
+                self.attrs_list[node.name],
+                self.methods_lists[node.name],
+            )
+        )
         self.class_tag += 1
 
     def visit_attr(self, node: base.AttributeNode, class_name):
-        self.attrsDict[class_name][node.name] = node.init_expr
-        self.attrsList[class_name].append(intermediate.AttributeNode(node.name, len(self.attrsList[class_name])))
+        self.attrs_dict[class_name][node.name] = node.init_expr
+        self.attrs_list[class_name].append(
+            intermediate.AttributeNode(node.name, len(self.attrs_list[class_name]))
+        )
 
     def visit_method(self, node: base.MethodNode, class_name):
-        self.methodsDict[class_name][node.name] = node.body
-        self.methodsLists[class_name].append(intermediate.MethodNode(node.name,
-                                                           "def_" + class_name + "_" + node.name,
-                                                           len(self.methodsLists[class_name])))
-
+        self.methods_dict[class_name][node.name] = node.body
+        self.methods_lists[class_name].append(
+            intermediate.MethodNode(
+                node.name,
+                "def_" + class_name + "_" + node.name,
+                len(self.methods_lists[class_name]),
+            )
+        )
 
 
 class IntermediateVisitor(YAPLVisitor):
-    instruction_nodes = {
-        "assign": intermediate.AssignNode,
-        "plus": intermediate.PlusNode,
-        "minus": intermediate.MinusNode,
-        "star": intermediate.StarNode,
-        "div": intermediate.DivNode,
-        "get": intermediate.GetAttribNode,
-        "set": intermediate.SetAttribNode,
-        "get_index": intermediate.GetIndexNode,
-        "set_index": intermediate.SetIndexNode,
-        "allocate": intermediate.AllocateNode,
-        "array": intermediate.ArrayNode,
-        "type_of": intermediate.TypeOfNode,
-        "label": intermediate.LabelNode,
-        "goto": intermediate.GotoNode,
-        "goto_if": intermediate.GotoIfNode,
-        "static_call": intermediate.StaticCallNode,
-        "dynamic_call": intermediate.DynamicCallNode,
-        "arg": intermediate.ArgNode,
-        "return": intermediate.ReturnNode,
-        "load": intermediate.LoadNode,
-        "length": intermediate.LengthNode,
-        "concat": intermediate.ConcatNode,
-        "substring": intermediate.SubstringNode,
-        "str": intermediate.ToStrNode,
-        "read_int": intermediate.ReadIntegerNode,
-        "read_string": intermediate.ReadStringNode,
-        "print_int": intermediate.PrintIntegerNode,
-        "print_string": intermediate.PrintStringNode,
-        "not": intermediate.BooleanNegation,
-        "copy": intermediate.CopyNode
-    }
-
     def __init__(self):
         self.local_vars_count = 0
         self.dot_types = [intermediate.TypeNode("Void", 0, [], [])]
@@ -143,8 +124,8 @@ class IntermediateVisitor(YAPLVisitor):
         self.current_class = ""
         self.func_count = 0
         self.label_count = 0
-        self.declaredAttributesInCLass = {}
-        self.declaredMethodsInClass = {}
+        self.declared_attrs_in_class = {}
+        self.declared_methods_in_class = {}
         self.names_of_values = {}
         self.class_tag = 0
         # self.inheritances[0] = Void
@@ -161,7 +142,16 @@ class IntermediateVisitor(YAPLVisitor):
         return result
 
     def get_label_name(self, name):
-        label = "label_" + self.current_class + "_" + self.curr_func_name + "_" + name + "_" + str(self.label_count)
+        label = (
+            "label_"
+            + self.current_class
+            + "_"
+            + self.curr_func_name
+            + "_"
+            + name
+            + "_"
+            + str(self.label_count)
+        )
         self.label_count += 1
         return label
 
@@ -178,11 +168,11 @@ class IntermediateVisitor(YAPLVisitor):
         return node
 
     def search_definition_class(self, feature_name, class_name, parents):
-        for method in self.declaredMethodsInClass[class_name]:
+        for method in self.declared_methods_in_class[class_name]:
             if method == feature_name:
                 return class_name
 
-        for attribute in self.declaredAttributesInCLass[class_name]:
+        for attribute in self.declared_attrs_in_class[class_name]:
             if attribute == feature_name:
                 return class_name
 
@@ -212,14 +202,25 @@ class IntermediateVisitor(YAPLVisitor):
         instance_var = self.def_internal_var(name)
         name = self.get_variable_name("value_" + str(self.local_vars_count))
         value_var = self.def_internal_var(name)
-        self.instructions.append(intermediate.AllocateNode(4, str(1), str(4), "Object_dispatch_table",
-                                                 instance_var.vname))
+        self.instructions.append(
+            intermediate.AllocateNode(
+                4, str(1), str(4), "Object_dispatch_table", instance_var.vname
+            )
+        )
         self.instructions.append(intermediate.ValueNode(value_var.vname, str(0)))
-        self.instructions.append(intermediate.SetAttribNode(instance_var.vname, 2, 0, value_var.vname))
+        self.instructions.append(
+            intermediate.SetAttribNode(instance_var.vname, 2, 0, value_var.vname)
+        )
         self.instructions.append(intermediate.ReturnNode(instance_var.vname))
-        methods.append(intermediate.MethodNode("init_Object", "init_Object", method_count))
+        methods.append(
+            intermediate.MethodNode("init_Object", "init_Object", method_count)
+        )
         method_count += 1
-        functions.append(intermediate.FunctionNode("init_Object", self.func_count, [], self.local_vars, self.instructions))
+        functions.append(
+            intermediate.FunctionNode(
+                "init_Object", self.func_count, [], self.local_vars, self.instructions
+            )
+        )
         self.func_count += 1
         # endregion
         # region abort
@@ -230,10 +231,19 @@ class IntermediateVisitor(YAPLVisitor):
         # abort_return = self.def_internal_var('abort_' + str(len(self.local_vars)))
         error_message = self.set_data('"Abort()"')
         self.instructions.append(intermediate.AbortNode(error_message.vname))
-        functions.append(intermediate.FunctionNode('def_Object_abort', self.func_count, [], self.local_vars,
-                                         self.instructions))
+        functions.append(
+            intermediate.FunctionNode(
+                "def_Object_abort",
+                self.func_count,
+                [],
+                self.local_vars,
+                self.instructions,
+            )
+        )
         self.func_count += 1
-        methods.append(intermediate.MethodNode('abort', 'def_Object_abort', method_count))
+        methods.append(
+            intermediate.MethodNode("abort", "def_Object_abort", method_count)
+        )
         method_count += 1
         self.curr_func_name = ""
         # endregion
@@ -242,21 +252,36 @@ class IntermediateVisitor(YAPLVisitor):
         self.local_vars = []
         self.instructions = []
         self.local_vars_count = 0
-        type_name = self.get_variable_name('type_name_' + str(len(self.local_vars)))
+        type_name = self.get_variable_name("type_name_" + str(len(self.local_vars)))
         type_local = self.def_internal_var(type_name)
         name_0 = self.get_variable_name("self_" + str(self.local_vars_count))
         local_0 = self.def_internal_var(name_0)
         self.instructions.append(intermediate.ArgNode(local_0.vname, 0))
-        self.instructions.append(intermediate.TypeOfNode(local_0.vname, type_local.vname))
+        self.instructions.append(
+            intermediate.TypeOfNode(local_0.vname, type_local.vname)
+        )
         name = self.get_variable_name("int_instance_" + str(self.local_vars_count))
         instance = self.def_internal_var(name)
-        self.instructions.append(intermediate.AllocateNode(4, "2", "4", "Int_dispatch_table", instance.vname))
-        self.instructions.append(intermediate.SetAttribNode(instance.vname, 2, 0, type_local.vname))
+        self.instructions.append(
+            intermediate.AllocateNode(4, "2", "4", "Int_dispatch_table", instance.vname)
+        )
+        self.instructions.append(
+            intermediate.SetAttribNode(instance.vname, 2, 0, type_local.vname)
+        )
         self.instructions.append(intermediate.ReturnNode(instance.vname))
-        functions.append(intermediate.FunctionNode('def_Object_type_name', self.func_count, [local_0.vname], self.local_vars,
-                                         self.instructions))
+        functions.append(
+            intermediate.FunctionNode(
+                "def_Object_type_name",
+                self.func_count,
+                [local_0.vname],
+                self.local_vars,
+                self.instructions,
+            )
+        )
         self.func_count += 1
-        methods.append(intermediate.MethodNode('type_name', 'def_Object_type_name', method_count))
+        methods.append(
+            intermediate.MethodNode("type_name", "def_Object_type_name", method_count)
+        )
         method_count += 1
         # endregion
         # region copy
@@ -268,12 +293,21 @@ class IntermediateVisitor(YAPLVisitor):
         result = self.get_variable_name("result_" + str(len(self.local_vars)))
         result_local = self.def_internal_var(result)
         self.instructions.append(intermediate.ArgNode(instance_local.vname, 0))
-        self.instructions.append(intermediate.CopyNode(instance_local.vname, result_local.vname))
+        self.instructions.append(
+            intermediate.CopyNode(instance_local.vname, result_local.vname)
+        )
         self.instructions.append(intermediate.ReturnNode(result_local.vname))
-        functions.append(intermediate.FunctionNode('def_Object_copy', method_count, [instance_local.vname], self.local_vars,
-                                         self.instructions))
+        functions.append(
+            intermediate.FunctionNode(
+                "def_Object_copy",
+                method_count,
+                [instance_local.vname],
+                self.local_vars,
+                self.instructions,
+            )
+        )
         self.func_count += 1
-        methods.append(intermediate.MethodNode('copy', 'def_Object_copy', method_count))
+        methods.append(intermediate.MethodNode("copy", "def_Object_copy", method_count))
         method_count += 1
         # endregion
         self.class_tag = self.get_class_tag("Object")
@@ -291,16 +325,25 @@ class IntermediateVisitor(YAPLVisitor):
         instance_var = self.def_internal_var(name)
         name = self.get_variable_name("value_" + str(self.local_vars_count))
         value_var = self.def_internal_var(name)
-        self.instructions.append(intermediate.AllocateNode(4, str(2), str(4), "Int_dispatch_table",
-                                                 instance_var.vname))
+        self.instructions.append(
+            intermediate.AllocateNode(
+                4, str(2), str(4), "Int_dispatch_table", instance_var.vname
+            )
+        )
         self.instructions.append(intermediate.ValueNode(value_var.vname, str(0)))
-        self.instructions.append(intermediate.SetAttribNode(instance_var.vname, 2, 0, value_var.vname))
+        self.instructions.append(
+            intermediate.SetAttribNode(instance_var.vname, 2, 0, value_var.vname)
+        )
         self.instructions.append(intermediate.ReturnNode(instance_var.vname))
         methods.append(intermediate.MethodNode("init_Int", "init_Int", 0))
         methods.append(intermediate.MethodNode("abort", "def_Object_abort", 1))
         methods.append(intermediate.MethodNode("type_name", "def_Object_type_name", 2))
         methods.append(intermediate.MethodNode("copy", "def_Object_copy", 3))
-        return [intermediate.FunctionNode("init_Int", 0, [], self.local_vars, self.instructions)]
+        return [
+            intermediate.FunctionNode(
+                "init_Int", 0, [], self.local_vars, self.instructions
+            )
+        ]
 
     def define_bool_type(self):
         self.current_class = "Bool"
@@ -314,10 +357,20 @@ class IntermediateVisitor(YAPLVisitor):
         name = self.get_variable_name("value_" + str(self.local_vars_count))
         value_local = self.def_internal_var(name)
         self.instructions.append(intermediate.ValueNode(value_local.vname, str(0)))
-        self.instructions.append(intermediate.AllocateNode(4, str(3), str(4), "Bool_dispatch_table", instance_local.vname))
-        self.instructions.append(intermediate.SetAttribNode(instance_local.vname, 3, 0, value_local.vname))
+        self.instructions.append(
+            intermediate.AllocateNode(
+                4, str(3), str(4), "Bool_dispatch_table", instance_local.vname
+            )
+        )
+        self.instructions.append(
+            intermediate.SetAttribNode(instance_local.vname, 3, 0, value_local.vname)
+        )
         self.instructions.append(intermediate.ReturnNode(instance_local.vname))
-        return [intermediate.FunctionNode("init_Bool", 0, [], self.local_vars, self.instructions)]
+        return [
+            intermediate.FunctionNode(
+                "init_Bool", 0, [], self.local_vars, self.instructions
+            )
+        ]
 
     def define_string_type(self):
         self.class_tag = self.get_class_tag("String")
@@ -334,11 +387,23 @@ class IntermediateVisitor(YAPLVisitor):
         instance_local = self.def_internal_var(name)
         name = self.get_variable_name("value_" + str(self.local_vars_count))
         value_local = self.def_internal_var(name)
-        self.instructions.append(intermediate.LoadNode("empty_string", value_local.vname))
-        self.instructions.append(intermediate.AllocateNode(4, str(4), str(4), "String_dispatch_table", instance_local.vname))
-        self.instructions.append(intermediate.SetAttribNode(instance_local.vname, 4, 0, value_local.vname))
+        self.instructions.append(
+            intermediate.LoadNode("empty_string", value_local.vname)
+        )
+        self.instructions.append(
+            intermediate.AllocateNode(
+                4, str(4), str(4), "String_dispatch_table", instance_local.vname
+            )
+        )
+        self.instructions.append(
+            intermediate.SetAttribNode(instance_local.vname, 4, 0, value_local.vname)
+        )
         self.instructions.append(intermediate.ReturnNode(instance_local.vname))
-        functions.append(intermediate.FunctionNode("init_String", 0, [], self.local_vars, self.instructions))
+        functions.append(
+            intermediate.FunctionNode(
+                "init_String", 0, [], self.local_vars, self.instructions
+            )
+        )
         self.func_count += 1
         # endregion
         # region length
@@ -346,19 +411,38 @@ class IntermediateVisitor(YAPLVisitor):
         self.instructions = []
         self.local_vars_count = 0
         self.current_class = "String"
-        length_return = self.def_internal_var('length_string_' + str(len(self.local_vars)))
+        length_return = self.def_internal_var(
+            "length_string_" + str(len(self.local_vars))
+        )
         name_0 = self.get_variable_name("self_" + str(self.local_vars_count))
         local_0 = self.def_internal_var(name_0)
         self.instructions.append(intermediate.ArgNode(local_0.vname, 0))
-        self.instructions.append(intermediate.GetAttribNode(local_0.vname, 4, 0, local_0.vname))
-        self.instructions.append(intermediate.LengthNode(local_0.vname, length_return.vname))
+        self.instructions.append(
+            intermediate.GetAttribNode(local_0.vname, 4, 0, local_0.vname)
+        )
+        self.instructions.append(
+            intermediate.LengthNode(local_0.vname, length_return.vname)
+        )
         name = self.get_variable_name("string_instance_" + str(self.local_vars_count))
         string_instance = self.def_internal_var(name)
-        self.instructions.append(intermediate.AllocateNode(4, str(2), str(4), "Int_dispatch_table", string_instance.vname))
-        self.instructions.append(intermediate.SetAttribNode(string_instance.vname, 4, 0, length_return.vname))
+        self.instructions.append(
+            intermediate.AllocateNode(
+                4, str(2), str(4), "Int_dispatch_table", string_instance.vname
+            )
+        )
+        self.instructions.append(
+            intermediate.SetAttribNode(string_instance.vname, 4, 0, length_return.vname)
+        )
         self.instructions.append(intermediate.ReturnNode(string_instance.vname))
-        functions.append(intermediate.FunctionNode('def_String_length', self.func_count, [local_0.vname], self.local_vars,
-                                         self.instructions))
+        functions.append(
+            intermediate.FunctionNode(
+                "def_String_length",
+                self.func_count,
+                [local_0.vname],
+                self.local_vars,
+                self.instructions,
+            )
+        )
         self.func_count += 1
         # endregion
         # region concat
@@ -366,10 +450,14 @@ class IntermediateVisitor(YAPLVisitor):
         self.local_vars = []
         self.instructions = []
         self.local_vars_count = 0
-        concat_return = self.def_internal_var('concat_string_' + str(self.local_vars_count))
+        concat_return = self.def_internal_var(
+            "concat_string_" + str(self.local_vars_count)
+        )
         name_1 = self.get_variable_name("concat_second_" + str(self.local_vars_count))
         local_1 = self.def_internal_var(name_1)
-        name_len_1 = self.get_variable_name("concat_second_length_" + str(self.local_vars_count))
+        name_len_1 = self.get_variable_name(
+            "concat_second_length_" + str(self.local_vars_count)
+        )
         local_len_1 = self.def_internal_var(name_len_1)
         name_0 = self.get_variable_name("self_" + str(self.local_vars_count))
         local_0 = self.def_internal_var(name_0)
@@ -379,18 +467,47 @@ class IntermediateVisitor(YAPLVisitor):
         local_string_instance = self.def_internal_var(name)
         self.instructions.append(intermediate.ArgNode(local_0.vname, 0))
         self.instructions.append(intermediate.ArgNode(local_1.vname, 1))
-        self.instructions.append(intermediate.GetAttribNode(local_0.vname, 4, 0, local_0.vname))
-        self.instructions.append(intermediate.GetAttribNode(local_1.vname, 4, 0, local_1.vname))
-        self.instructions.append(intermediate.LengthNode(local_0.vname, local_len_0.vname))
-        self.instructions.append(intermediate.LengthNode(local_1.vname, local_len_1.vname))
-        self.instructions.append(intermediate.ConcatNode(local_0.vname, local_1.vname, local_len_0.vname,
-                                               local_len_1.vname, concat_return.vname))
-        self.instructions.append(intermediate.AllocateNode(4, str(4), str(4), "String_dispatch_table",
-                                                 local_string_instance.vname))
-        self.instructions.append(intermediate.SetAttribNode(local_string_instance.vname, 4, 0, concat_return.vname))
+        self.instructions.append(
+            intermediate.GetAttribNode(local_0.vname, 4, 0, local_0.vname)
+        )
+        self.instructions.append(
+            intermediate.GetAttribNode(local_1.vname, 4, 0, local_1.vname)
+        )
+        self.instructions.append(
+            intermediate.LengthNode(local_0.vname, local_len_0.vname)
+        )
+        self.instructions.append(
+            intermediate.LengthNode(local_1.vname, local_len_1.vname)
+        )
+        self.instructions.append(
+            intermediate.ConcatNode(
+                local_0.vname,
+                local_1.vname,
+                local_len_0.vname,
+                local_len_1.vname,
+                concat_return.vname,
+            )
+        )
+        self.instructions.append(
+            intermediate.AllocateNode(
+                4, str(4), str(4), "String_dispatch_table", local_string_instance.vname
+            )
+        )
+        self.instructions.append(
+            intermediate.SetAttribNode(
+                local_string_instance.vname, 4, 0, concat_return.vname
+            )
+        )
         self.instructions.append(intermediate.ReturnNode(local_string_instance.vname))
-        functions.append(intermediate.FunctionNode('def_String_concat', self.func_count, [local_0.vname, local_1.vname],
-                                         self.local_vars, self.instructions))
+        functions.append(
+            intermediate.FunctionNode(
+                "def_String_concat",
+                self.func_count,
+                [local_0.vname, local_1.vname],
+                self.local_vars,
+                self.instructions,
+            )
+        )
         self.func_count += 1
         # endregion
         # region substr
@@ -398,7 +515,9 @@ class IntermediateVisitor(YAPLVisitor):
         self.local_vars = []
         self.instructions = []
         self.local_vars_count = 0
-        substr_return = self.def_internal_var('substr_value_' + str(len(self.local_vars)))
+        substr_return = self.def_internal_var(
+            "substr_value_" + str(len(self.local_vars))
+        )
         name_0 = self.get_variable_name("self_" + str(self.local_vars_count))
         local_0 = self.def_internal_var(name_0)
         name_1 = self.get_variable_name("index_substr_" + str(self.local_vars_count))
@@ -408,18 +527,40 @@ class IntermediateVisitor(YAPLVisitor):
         self.instructions.append(intermediate.ArgNode(local_2.vname, 2))
         self.instructions.append(intermediate.ArgNode(local_1.vname, 1))
         self.instructions.append(intermediate.ArgNode(local_0.vname, 0))
-        self.instructions.append(intermediate.GetAttribNode(local_0.vname, 4, 0, local_0.vname))
-        self.instructions.append(intermediate.GetAttribNode(local_1.vname, 4, 0, local_1.vname))
-        self.instructions.append(intermediate.GetAttribNode(local_2.vname, 4, 0, local_2.vname))
-        self.instructions.append(intermediate.SubstringNode(local_0.vname, local_1.vname, local_2.vname, substr_return.vname))
+        self.instructions.append(
+            intermediate.GetAttribNode(local_0.vname, 4, 0, local_0.vname)
+        )
+        self.instructions.append(
+            intermediate.GetAttribNode(local_1.vname, 4, 0, local_1.vname)
+        )
+        self.instructions.append(
+            intermediate.GetAttribNode(local_2.vname, 4, 0, local_2.vname)
+        )
+        self.instructions.append(
+            intermediate.SubstringNode(
+                local_0.vname, local_1.vname, local_2.vname, substr_return.vname
+            )
+        )
         name = self.get_variable_name("string_instance_" + str(self.local_vars_count))
         instance = self.def_internal_var(name)
-        self.instructions.append(intermediate.AllocateNode(4, str(4), str(4), "String_dispatch_table", instance.vname))
-        self.instructions.append(intermediate.SetAttribNode(instance.vname, 4, 0, substr_return.vname))
+        self.instructions.append(
+            intermediate.AllocateNode(
+                4, str(4), str(4), "String_dispatch_table", instance.vname
+            )
+        )
+        self.instructions.append(
+            intermediate.SetAttribNode(instance.vname, 4, 0, substr_return.vname)
+        )
         self.instructions.append(intermediate.ReturnNode(instance.vname))
-        functions.append(intermediate.FunctionNode('def_String_substr', self.func_count,
-                                         [local_0.vname, local_1.vname, local_2.vname],
-                                         self.local_vars, self.instructions))
+        functions.append(
+            intermediate.FunctionNode(
+                "def_String_substr",
+                self.func_count,
+                [local_0.vname, local_1.vname, local_2.vname],
+                self.local_vars,
+                self.instructions,
+            )
+        )
         self.func_count += 1
         # endregion
 
@@ -439,45 +580,87 @@ class IntermediateVisitor(YAPLVisitor):
         self.func_count = 0
         name = self.get_variable_name("instance_" + str(self.local_vars_count))
         instance = self.def_internal_var(name)
-        self.instructions.append(intermediate.AllocateNode(4, str(5), str(4), "IO_dispatch_table", instance.vname))
+        self.instructions.append(
+            intermediate.AllocateNode(
+                4, str(5), str(4), "IO_dispatch_table", instance.vname
+            )
+        )
         self.instructions.append(intermediate.ReturnNode(instance.vname))
-        functions.append(intermediate.FunctionNode(self.curr_func_name, self.func_count, [], self.local_vars, self.instructions))
+        functions.append(
+            intermediate.FunctionNode(
+                self.curr_func_name,
+                self.func_count,
+                [],
+                self.local_vars,
+                self.instructions,
+            )
+        )
         # endregion
         # region in_string
         self.curr_func_name = "in_string"
         self.local_vars = []
         self.instructions = []
-        in_string_value = self.def_internal_var(self.get_variable_name('in_string_value_' + str(len(self.local_vars))))
+        in_string_value = self.def_internal_var(
+            self.get_variable_name("in_string_value_" + str(len(self.local_vars)))
+        )
         name_0 = self.get_variable_name("self_" + str(self.local_vars_count))
         local_0 = self.def_internal_var(name_0)
-        local_1 = self.def_internal_var(self.get_variable_name("0_number_" + str(self.local_vars_count)))
-        local_2 = self.def_internal_var(self.get_variable_name("length_" + str(self.local_vars_count)))
-        local_3 = self.def_internal_var(self.get_variable_name("1_number_" + str(self.local_vars_count)))
+        local_1 = self.def_internal_var(
+            self.get_variable_name("0_number_" + str(self.local_vars_count))
+        )
+        local_2 = self.def_internal_var(
+            self.get_variable_name("length_" + str(self.local_vars_count))
+        )
+        local_3 = self.def_internal_var(
+            self.get_variable_name("1_number_" + str(self.local_vars_count))
+        )
         self.instructions.append(intermediate.ArgNode(local_0.vname, 0))
         self.instructions.append(intermediate.ReadStringNode(in_string_value.vname))
         self.instructions.append(intermediate.ValueNode(local_1.vname, "0"))
         # self.instructions.append(intermediate.LengthNode(in_string_value.vname, local_2.vname))
         # self.instructions.append(intermediate.ValueNode(local_3.vname, "1"))
         # self.instructions.append(intermediate.MinusNode(local_2.vname, local_3.vname, local_2.vname))
-        self.instructions.append(intermediate.SubstringNode(in_string_value.vname, local_1.vname,
-                                                  local_2.vname, in_string_value.vname))
+        self.instructions.append(
+            intermediate.SubstringNode(
+                in_string_value.vname,
+                local_1.vname,
+                local_2.vname,
+                in_string_value.vname,
+            )
+        )
         self.instructions.append(intermediate.ReturnNode(local_0.vname))
-        functions.append(intermediate.FunctionNode('def_IO_in_string', self.func_count, [local_0.vname], self.local_vars,
-                                         self.instructions))
+        functions.append(
+            intermediate.FunctionNode(
+                "def_IO_in_string",
+                self.func_count,
+                [local_0.vname],
+                self.local_vars,
+                self.instructions,
+            )
+        )
         self.func_count += 1
         # endregion
         # region in_int
         self.curr_func_name = "in_int"
         self.local_vars = []
         self.instructions = []
-        in_int_value = self.def_internal_var(self.get_variable_name('in_int_value_' + str(len(self.local_vars))))
+        in_int_value = self.def_internal_var(
+            self.get_variable_name("in_int_value_" + str(len(self.local_vars)))
+        )
         name_0 = self.get_variable_name("self_" + str(self.local_vars_count))
         local_0 = self.def_internal_var(name_0)
         self.instructions.append(intermediate.ArgNode(local_0.vname, 0))
         self.instructions.append(intermediate.ReadIntegerNode(in_int_value.vname))
         self.instructions.append(intermediate.ReturnNode(in_int_value.vname))
-        functions.append(intermediate.FunctionNode('def_IO_in_int', self.func_count, [local_0.vname],
-                                         self.local_vars, self.instructions))
+        functions.append(
+            intermediate.FunctionNode(
+                "def_IO_in_int",
+                self.func_count,
+                [local_0.vname],
+                self.local_vars,
+                self.instructions,
+            )
+        )
         self.func_count += 1
         # endregion
         # region out_string
@@ -490,11 +673,20 @@ class IntermediateVisitor(YAPLVisitor):
         local_1 = self.def_internal_var(name_1)
         self.instructions.append(intermediate.ArgNode(local_1.vname, 1))
         self.instructions.append(intermediate.ArgNode(local_0.vname, 0))
-        self.instructions.append(intermediate.GetAttribNode(local_1.vname, 4, 0, local_1.vname))
+        self.instructions.append(
+            intermediate.GetAttribNode(local_1.vname, 4, 0, local_1.vname)
+        )
         self.instructions.append(intermediate.PrintStringNode(local_1.vname))
         self.instructions.append(intermediate.ReturnNode(local_0.vname))
-        functions.append(intermediate.FunctionNode('def_IO_out_string', self.func_count, [name_0, name_1],
-                                         self.local_vars, self.instructions))
+        functions.append(
+            intermediate.FunctionNode(
+                "def_IO_out_string",
+                self.func_count,
+                [name_0, name_1],
+                self.local_vars,
+                self.instructions,
+            )
+        )
         self.func_count += 1
         # endregion
         # region out_int
@@ -509,8 +701,15 @@ class IntermediateVisitor(YAPLVisitor):
         self.instructions.append(intermediate.ArgNode(local_0.vname, 0))
         self.instructions.append(intermediate.PrintStringNode(local_1.vname))
         self.instructions.append(intermediate.ReturnNode(local_0.vname))
-        functions.append(intermediate.FunctionNode('def_IO_out_int', self.func_count, [name_0, name_1], self.local_vars,
-                                         self.instructions))
+        functions.append(
+            intermediate.FunctionNode(
+                "def_IO_out_int",
+                self.func_count,
+                [name_0, name_1],
+                self.local_vars,
+                self.instructions,
+            )
+        )
         self.func_count += 1
         # endregion
 
@@ -545,15 +744,15 @@ class IntermediateVisitor(YAPLVisitor):
     # endregion
 
     # region Visitors
-    @visitor.on('node')
+    @visitor.on("node")
     def visit(self, node):
         pass
 
     @visitor.when(base.ProgramNode)
     def visit(self, node: base.ProgramNode):
         pre_visit = DeclarationsVisitor(node)
-        self.declaredAttributesInCLass = pre_visit.attrsDict
-        self.declaredMethodsInClass = pre_visit.methodsDict
+        self.declared_attrs_in_class = pre_visit.attrs_dict
+        self.declared_methods_in_class = pre_visit.methods_dict
         self.dot_types = pre_visit.dot_types
         functions = []
 
@@ -566,7 +765,9 @@ class IntermediateVisitor(YAPLVisitor):
         for n in node.class_list:
             functions.extend(self.visit(n))
 
-        return intermediate.ProgramNode(self.dot_types, self.dot_data, functions, self.inheritances)
+        return intermediate.ProgramNode(
+            self.dot_types, self.dot_data, functions, self.inheritances
+        )
 
     @visitor.when(base.ClassNode)
     def visit(self, node: base.ClassNode):
@@ -593,48 +794,86 @@ class IntermediateVisitor(YAPLVisitor):
         self.curr_func_name = "init_" + self.current_class
         instance_name = self.get_variable_name("instance_" + str(self.local_vars_count))
         instance_local = self.def_internal_var(instance_name)
-        self.instructions.append(intermediate.AllocateNode(3 + len(node.context_type.types[node.name].attributes),
-                                                 str(self.class_tag),
-                                                 str(3 + len(node.context_type.types[node.name].attributes)),
-                                                 node.name + "_dispatch_table", instance_local.vname))
+        self.instructions.append(
+            intermediate.AllocateNode(
+                3 + len(node.context_type.types[node.name].attributes),
+                str(self.class_tag),
+                str(3 + len(node.context_type.types[node.name].attributes)),
+                node.name + "_dispatch_table",
+                instance_local.vname,
+            )
+        )
         # endregion
 
-        t = node.context_type.getType(node.name)
+        t = node.context_type.get_type(node.name)
 
         # region Atributos de la clase
         for i, attribute in enumerate(node.context_type.types[node.name].attributes):
-            def_class = self.search_definition_class(attribute, node.name, node.context_type.parentsOfType(t)[1:])
-            expr = self.declaredAttributesInCLass[def_class][attribute]
+            def_class = self.search_definition_class(
+                attribute, node.name, node.context_type.parents_of_type(t)[1:]
+            )
+            expr = self.declared_attrs_in_class[def_class][attribute]
 
             if expr is not None:
                 # develops the code for the expresion
-                self.instructions.append(intermediate.SetAttribNode(instance_local.vname, self.class_tag, i,
-                                                          self.visit(expr).vname))
+                self.instructions.append(
+                    intermediate.SetAttribNode(
+                        instance_local.vname, self.class_tag, i, self.visit(expr).vname
+                    )
+                )
             else:
                 # instantiates a default instance
-                attr_instance_name = self.get_variable_name("attr_instance_" + str(self.local_vars_count))
+                attr_instance_name = self.get_variable_name(
+                    "attr_instance_" + str(self.local_vars_count)
+                )
                 attr_instance_local = self.def_internal_var(attr_instance_name)
-                ta = node.context_type.getTypeFor(attribute).name
+                ta = node.context_type.get_type_for(attribute).name
                 if ta == "Int" or ta == "String" or ta == "Bool":
                     # special case of the built-in types with default initialitation
                     self.instructions.append(intermediate.PushaNode())
-                    self.instructions.append(intermediate.StaticCallNode("init_" + ta, instance_local.vname,
-                                                               attr_instance_local.vname, 0))
+                    self.instructions.append(
+                        intermediate.StaticCallNode(
+                            "init_" + ta,
+                            instance_local.vname,
+                            attr_instance_local.vname,
+                            0,
+                        )
+                    )
                     self.instructions.append(intermediate.PopaNode())
-                    self.instructions.append(intermediate.SetAttribNode(instance_local.vname, self.class_tag, i,
-                                                              attr_instance_local.vname))
+                    self.instructions.append(
+                        intermediate.SetAttribNode(
+                            instance_local.vname,
+                            self.class_tag,
+                            i,
+                            attr_instance_local.vname,
+                        )
+                    )
                 else:
                     # the initialization of the other classes
-                    value_node_name = self.get_variable_name("value_void_" + str(self.local_vars_count))
+                    value_node_name = self.get_variable_name(
+                        "value_void_" + str(self.local_vars_count)
+                    )
                     value_node = self.def_internal_var(value_node_name)
-                    self.instructions.append(intermediate.ValueNode(value_node.vname, "0"))
-                    self.instructions.append(intermediate.SetAttribNode(instance_local.vname, self.class_tag,
-                                                              i, value_node.vname))
+                    self.instructions.append(
+                        intermediate.ValueNode(value_node.vname, "0")
+                    )
+                    self.instructions.append(
+                        intermediate.SetAttribNode(
+                            instance_local.vname, self.class_tag, i, value_node.vname
+                        )
+                    )
 
         self.instructions.append(intermediate.ReturnNode(instance_local.vname))
 
-        functions = [intermediate.FunctionNode("init_" + node.name, self.func_count, [],  # init_params,
-                                     self.local_vars, self.instructions)]
+        functions = [
+            intermediate.FunctionNode(
+                "init_" + node.name,
+                self.func_count,
+                [],  # init_params,
+                self.local_vars,
+                self.instructions,
+            )
+        ]
         self.func_count += 1
         # endregion
 
@@ -646,21 +885,29 @@ class IntermediateVisitor(YAPLVisitor):
             self.curr_func_name = method
             self.local_vars_count = 0
 
-            def_class = self.search_definition_class(method, node.name, node.context_type.parentsOfType(t)[1:])
-            method_node = intermediate.MethodNode(method, "def_" + def_class + "_" + method, method_index)
+            def_class = self.search_definition_class(
+                method, node.name, node.context_type.parents_of_type(t)[1:]
+            )
+            method_node = intermediate.MethodNode(
+                method, "def_" + def_class + "_" + method, method_index
+            )
             method_index += 1
 
             if def_class == node.name:
-                expr = self.declaredMethodsInClass[def_class][method]
+                expr = self.declared_methods_in_class[def_class][method]
 
                 self_name = self.get_variable_name("self_" + str(self.local_vars_count))
                 self_local = self.def_internal_var(self_name)
                 params = [self_name]
                 self.instructions.append(intermediate.ArgNode(self_local.vname, 0))
                 for arg in node.context_type.types[node.name].methods[method].arguments:
-                    arg_name = self.get_variable_name("arg_" + str(self.local_vars_count))
+                    arg_name = self.get_variable_name(
+                        "arg_" + str(self.local_vars_count)
+                    )
                     arg_local = self.def_internal_var(arg_name)
-                    self.instructions.append(intermediate.ArgNode(arg_local.vname, len(params)))
+                    self.instructions.append(
+                        intermediate.ArgNode(arg_local.vname, len(params))
+                    )
                     params.append(arg_local.vname)
                     self.names_of_values[arg.name] = [arg_local.vname]
 
@@ -668,8 +915,14 @@ class IntermediateVisitor(YAPLVisitor):
                 self.instructions.append(intermediate.ReturnNode(return_method.vname))
 
                 functions.append(
-                    intermediate.FunctionNode(method_node.function_name, self.func_count, params, self.local_vars,
-                                    self.instructions))
+                    intermediate.FunctionNode(
+                        method_node.function_name,
+                        self.func_count,
+                        params,
+                        self.local_vars,
+                        self.instructions,
+                    )
+                )
                 self.func_count += 1
 
         # endregion
@@ -689,35 +942,66 @@ class IntermediateVisitor(YAPLVisitor):
     @visitor.when(base.AssignNode)
     def visit(self, node: base.AssignNode):
         if node.idx_token in self.names_of_values.keys():
-            name = self.names_of_values[node.idx_token][len(self.names_of_values[node.idx_token]) - 1]
+            name = self.names_of_values[node.idx_token][
+                len(self.names_of_values[node.idx_token]) - 1
+            ]
         else:
-            name = self.get_variable_name(node.idx_token + "_" + str(self.local_vars_count))
+            name = self.get_variable_name(
+                node.idx_token + "_" + str(self.local_vars_count)
+            )
         return_value = self.def_internal_var(name)
-        t = node.context_type.getTypeFor(node.idx_token).name
-        if t in ['Int', 'Bool']:
-            self.instructions.append(intermediate.CopyNode(self.visit(node.expr).vname, return_value.vname))
-        elif t == 'String':
+        t = node.context_type.get_type_for(node.idx_token).name
+        if t in ["Int", "Bool"]:
+            self.instructions.append(
+                intermediate.CopyNode(self.visit(node.expr).vname, return_value.vname)
+            )
+        elif t == "String":
             expr_assign = self.visit(node.expr)
-            self.instructions.append(intermediate.CopyNode(expr_assign.vname, return_value.vname))
-            attr_string = self.get_variable_name(node.idx_token + '_attr_string_' + str(self.local_vars_count))
+            self.instructions.append(
+                intermediate.CopyNode(expr_assign.vname, return_value.vname)
+            )
+            attr_string = self.get_variable_name(
+                node.idx_token + "_attr_string_" + str(self.local_vars_count)
+            )
             attr_value = self.def_internal_var(attr_string)
-            self.instructions.append(intermediate.GetAttribNode(expr_assign.vname, 4, 0, attr_value.vname))
-            lo_index = self.get_variable_name(node.idx_token + '_lo_index_' + str(self.local_vars_count))
+            self.instructions.append(
+                intermediate.GetAttribNode(expr_assign.vname, 4, 0, attr_value.vname)
+            )
+            lo_index = self.get_variable_name(
+                node.idx_token + "_lo_index_" + str(self.local_vars_count)
+            )
             lo_value = self.def_internal_var(lo_index)
-            hi_index = self.get_variable_name(node.idx_token + '_hi_index_' + str(self.local_vars_count))
+            hi_index = self.get_variable_name(
+                node.idx_token + "_hi_index_" + str(self.local_vars_count)
+            )
             hi_value = self.def_internal_var(hi_index)
-            self.instructions.append(intermediate.ValueNode(lo_value.vname, '0'))
-            self.instructions.append(intermediate.LengthNode(attr_value.vname, hi_value.vname))
-            temp_string = self.get_variable_name(node.idx_token + '_temp_string_' + str(self.local_vars_count))
+            self.instructions.append(intermediate.ValueNode(lo_value.vname, "0"))
+            self.instructions.append(
+                intermediate.LengthNode(attr_value.vname, hi_value.vname)
+            )
+            temp_string = self.get_variable_name(
+                node.idx_token + "_temp_string_" + str(self.local_vars_count)
+            )
             temp_value = self.def_internal_var(temp_string)
-            self.instructions.append(intermediate.SubstringNode(attr_value.vname, lo_value.vname, hi_value.vname,
-                                                      temp_value.vname))
-            self.instructions.append(intermediate.SetAttribNode(return_value.vname, 4, 0, temp_value.vname))
+            self.instructions.append(
+                intermediate.SubstringNode(
+                    attr_value.vname, lo_value.vname, hi_value.vname, temp_value.vname
+                )
+            )
+            self.instructions.append(
+                intermediate.SetAttribNode(return_value.vname, 4, 0, temp_value.vname)
+            )
         else:
-            self.instructions.append(intermediate.AssignNode(return_value.vname, self.visit(node.expr).vname))
+            self.instructions.append(
+                intermediate.AssignNode(return_value.vname, self.visit(node.expr).vname)
+            )
 
         if node.idx_token in self.names_of_values:
-            self.instructions.append(intermediate.AssignNode(self.names_of_values[node.idx_token][-1], return_value.vname))
+            self.instructions.append(
+                intermediate.AssignNode(
+                    self.names_of_values[node.idx_token][-1], return_value.vname
+                )
+            )
         else:
             attr_index = 0
             for t in self.dot_types:
@@ -725,8 +1009,14 @@ class IntermediateVisitor(YAPLVisitor):
                     for attr in t.attributes:
                         if attr.name == node.idx_token:
                             attr_index = attr.attr_index
-            self.instructions.append(intermediate.SetAttribNode(self.current_class + "_" + self.curr_func_name +
-                                                      "_self_0", self.class_tag, attr_index, return_value.vname))
+            self.instructions.append(
+                intermediate.SetAttribNode(
+                    self.current_class + "_" + self.curr_func_name + "_self_0",
+                    self.class_tag,
+                    attr_index,
+                    return_value.vname,
+                )
+            )
 
         return return_value
 
@@ -740,33 +1030,62 @@ class IntermediateVisitor(YAPLVisitor):
         self.names_of_values[n].append(name)
         if node.expr is not None:
             value = self.visit(node.expr)
-            if node.type_token in ['Int', 'Bool']:
-                self.instructions.append(intermediate.CopyNode(self.visit(node.expr).vname, name_value.vname))
-            elif node.type_token == 'String':
+            if node.type_token in ["Int", "Bool"]:
+                self.instructions.append(
+                    intermediate.CopyNode(self.visit(node.expr).vname, name_value.vname)
+                )
+            elif node.type_token == "String":
                 expr_assign = self.visit(node.expr)
-                self.instructions.append(intermediate.CopyNode(expr_assign.vname, name_value.vname))
-                attr_string = self.get_variable_name(node.idx_token + '_attr_string_' + str(self.local_vars_count))
+                self.instructions.append(
+                    intermediate.CopyNode(expr_assign.vname, name_value.vname)
+                )
+                attr_string = self.get_variable_name(
+                    node.idx_token + "_attr_string_" + str(self.local_vars_count)
+                )
                 attr_value = self.def_internal_var(attr_string)
-                self.instructions.append(intermediate.GetAttribNode(expr_assign.vname, 4, 0, attr_value.vname))
-                lo_index = self.get_variable_name(node.idx_token + '_lo_index_' + str(self.local_vars_count))
+                self.instructions.append(
+                    intermediate.GetAttribNode(
+                        expr_assign.vname, 4, 0, attr_value.vname
+                    )
+                )
+                lo_index = self.get_variable_name(
+                    node.idx_token + "_lo_index_" + str(self.local_vars_count)
+                )
                 lo_value = self.def_internal_var(lo_index)
-                hi_index = self.get_variable_name(node.idx_token + '_hi_index_' + str(self.local_vars_count))
+                hi_index = self.get_variable_name(
+                    node.idx_token + "_hi_index_" + str(self.local_vars_count)
+                )
                 hi_value = self.def_internal_var(hi_index)
-                self.instructions.append(intermediate.ValueNode(lo_value.vname, '0'))
-                self.instructions.append(intermediate.LengthNode(attr_value.vname, hi_value.vname))
-                temp_string = self.get_variable_name(node.idx_token + '_temp_string_' + str(self.local_vars_count))
+                self.instructions.append(intermediate.ValueNode(lo_value.vname, "0"))
+                self.instructions.append(
+                    intermediate.LengthNode(attr_value.vname, hi_value.vname)
+                )
+                temp_string = self.get_variable_name(
+                    node.idx_token + "_temp_string_" + str(self.local_vars_count)
+                )
                 temp_value = self.def_internal_var(temp_string)
                 self.instructions.append(
-                    intermediate.SubstringNode(attr_value.vname, lo_value.vname, hi_value.vname, temp_value.vname))
-                self.instructions.append(intermediate.SetAttribNode(name_value.vname, 4, 0, temp_value.vname))
+                    intermediate.SubstringNode(
+                        attr_value.vname,
+                        lo_value.vname,
+                        hi_value.vname,
+                        temp_value.vname,
+                    )
+                )
+                self.instructions.append(
+                    intermediate.SetAttribNode(name_value.vname, 4, 0, temp_value.vname)
+                )
             else:
                 self.instructions.append(intermediate.AssignNode(name, value.vname))
 
         else:
-            if node.type_token in ['String', 'Int', 'Bool']:
+            if node.type_token in ["String", "Int", "Bool"]:
                 self.instructions.append(intermediate.PushaNode())
-                self.instructions.append(intermediate.StaticCallNode("init_" + node.type_token,
-                                                           name_value.vname, name_value.vname, 0))
+                self.instructions.append(
+                    intermediate.StaticCallNode(
+                        "init_" + node.type_token, name_value.vname, name_value.vname, 0
+                    )
+                )
                 self.instructions.append(intermediate.PopaNode())
         return name_value
 
@@ -775,11 +1094,19 @@ class IntermediateVisitor(YAPLVisitor):
         expr = self.visit(node.expr)
         name = self.get_variable_name("bool_neg_" + str(self.local_vars_count))
         local_node = self.def_internal_var(name)
-        self.instructions.append(intermediate.GetAttribNode(expr.vname, 3, 0, expr.vname))
+        self.instructions.append(
+            intermediate.GetAttribNode(expr.vname, 3, 0, expr.vname)
+        )
         self.instructions.append(intermediate.ValueNode(local_node.vname, "1"))
-        self.instructions.append(intermediate.MinusNode(local_node.vname, expr.vname, local_node.vname))
-        self.instructions.append(intermediate.AllocateNode(4, "3", "4", "Bool_dispatch_table", expr.vname))
-        self.instructions.append(intermediate.SetAttribNode(expr.vname, 3, 0, local_node.vname))
+        self.instructions.append(
+            intermediate.MinusNode(local_node.vname, expr.vname, local_node.vname)
+        )
+        self.instructions.append(
+            intermediate.AllocateNode(4, "3", "4", "Bool_dispatch_table", expr.vname)
+        )
+        self.instructions.append(
+            intermediate.SetAttribNode(expr.vname, 3, 0, local_node.vname)
+        )
         return expr
 
     @visitor.when(base.IfNode)
@@ -791,19 +1118,25 @@ class IntermediateVisitor(YAPLVisitor):
         if_label = self.get_label_name("if")
         fi_label = self.get_label_name("fi")
 
-        self.instructions.append(intermediate.GetAttribNode(predicate.vname, 3, 0, predicate.vname))
+        self.instructions.append(
+            intermediate.GetAttribNode(predicate.vname, 3, 0, predicate.vname)
+        )
 
         goto_node = intermediate.GotoIfNode(predicate.vname, if_label)
         self.instructions.append(goto_node)
 
         else_value = self.visit(node.else_expr)
-        self.instructions.append(intermediate.AssignNode(local_node.vname, else_value.vname))
+        self.instructions.append(
+            intermediate.AssignNode(local_node.vname, else_value.vname)
+        )
 
         self.instructions.append(intermediate.GotoNode(fi_label))
         self.instructions.append(intermediate.LabelNode(if_label))
 
         then_value = self.visit(node.then_expr)
-        self.instructions.append(intermediate.AssignNode(local_node.vname, then_value.vname))
+        self.instructions.append(
+            intermediate.AssignNode(local_node.vname, then_value.vname)
+        )
         self.instructions.append(intermediate.LabelNode(fi_label))
 
         return local_node
@@ -814,9 +1147,17 @@ class IntermediateVisitor(YAPLVisitor):
         local_node = self.def_internal_var(name)
         name = self.get_variable_name("is_void_instance_" + str(self.local_vars_count))
         local_instance = self.def_internal_var(name)
-        self.instructions.append(intermediate.IsVoidNode(self.visit(node.expr).vname, local_node.vname))
-        self.instructions.append(intermediate.AllocateNode(4, str(3), str(4), "Bool_dispatch_table", local_instance.vname))
-        self.instructions.append(intermediate.SetAttribNode(local_instance.vname, 3, 0, local_node.vname))
+        self.instructions.append(
+            intermediate.IsVoidNode(self.visit(node.expr).vname, local_node.vname)
+        )
+        self.instructions.append(
+            intermediate.AllocateNode(
+                4, str(3), str(4), "Bool_dispatch_table", local_instance.vname
+            )
+        )
+        self.instructions.append(
+            intermediate.SetAttribNode(local_instance.vname, 3, 0, local_node.vname)
+        )
         return local_instance
 
     @visitor.when(base.EqualNode)
@@ -826,35 +1167,80 @@ class IntermediateVisitor(YAPLVisitor):
         local_left = self.visit(node.left)
         local_right = self.visit(node.right)
         if node.left.return_type in ["Int", "Bool"]:
-            self.instructions.append(intermediate.GetAttribNode(local_left.vname, 2, 0, local_left.vname))
-            self.instructions.append(intermediate.GetAttribNode(local_right.vname, 2, 0, local_right.vname))
-            self.instructions.append(intermediate.MinusNode(local_left.vname, local_right.vname, local_node.vname))
-            self.instructions.append(intermediate.EqualNode(local_node.vname, local_node.vname))
+            self.instructions.append(
+                intermediate.GetAttribNode(local_left.vname, 2, 0, local_left.vname)
+            )
+            self.instructions.append(
+                intermediate.GetAttribNode(local_right.vname, 2, 0, local_right.vname)
+            )
+            self.instructions.append(
+                intermediate.MinusNode(
+                    local_left.vname, local_right.vname, local_node.vname
+                )
+            )
+            self.instructions.append(
+                intermediate.EqualNode(local_node.vname, local_node.vname)
+            )
             name = self.get_variable_name("bool_instance_" + str(self.local_vars_count))
             local_bool_instance = self.def_internal_var(name)
             self.instructions.append(
-                intermediate.AllocateNode(4, str(3), str(4), "Bool_dispatch_table", local_bool_instance.vname))
-            self.instructions.append(intermediate.SetAttribNode(local_bool_instance.vname, 3, 0, local_node.vname))
+                intermediate.AllocateNode(
+                    4, str(3), str(4), "Bool_dispatch_table", local_bool_instance.vname
+                )
+            )
+            self.instructions.append(
+                intermediate.SetAttribNode(
+                    local_bool_instance.vname, 3, 0, local_node.vname
+                )
+            )
 
         elif node.left.return_type == "String":
-            self.instructions.append(intermediate.GetAttribNode(local_left.vname, 4, 0, local_left.vname))
-            self.instructions.append(intermediate.GetAttribNode(local_right.vname, 4, 0, local_right.vname))
-            self.instructions.append(intermediate.StringCmp(local_left.vname, local_right.vname, local_node.vname))
+            self.instructions.append(
+                intermediate.GetAttribNode(local_left.vname, 4, 0, local_left.vname)
+            )
+            self.instructions.append(
+                intermediate.GetAttribNode(local_right.vname, 4, 0, local_right.vname)
+            )
+            self.instructions.append(
+                intermediate.StringCmp(
+                    local_left.vname, local_right.vname, local_node.vname
+                )
+            )
             name = self.get_variable_name("bool_instance_" + str(self.local_vars_count))
             local_bool_instance = self.def_internal_var(name)
             self.instructions.append(
-                intermediate.AllocateNode(4, str(3), str(4), "Bool_dispatch_table", local_bool_instance.vname))
-            self.instructions.append(intermediate.SetAttribNode(local_bool_instance.vname, 3, 0, local_node.vname))
+                intermediate.AllocateNode(
+                    4, str(3), str(4), "Bool_dispatch_table", local_bool_instance.vname
+                )
+            )
+            self.instructions.append(
+                intermediate.SetAttribNode(
+                    local_bool_instance.vname, 3, 0, local_node.vname
+                )
+            )
 
         else:
-            self.instructions.append(intermediate.MinusNode(local_left.vname, local_right.vname, local_node.vname))
+            self.instructions.append(
+                intermediate.MinusNode(
+                    local_left.vname, local_right.vname, local_node.vname
+                )
+            )
 
             name = self.get_variable_name("bool_instance_" + str(self.local_vars_count))
             local_bool_instance = self.def_internal_var(name)
             self.instructions.append(
-                intermediate.AllocateNode(4, str(3), str(4), "Bool_dispatch_table", local_bool_instance.vname))
-            self.instructions.append(intermediate.SetAttribNode(local_bool_instance.vname, 3, 0, local_node.vname))
-            self.instructions.append(intermediate.BooleanNegation(local_bool_instance.vname))
+                intermediate.AllocateNode(
+                    4, str(3), str(4), "Bool_dispatch_table", local_bool_instance.vname
+                )
+            )
+            self.instructions.append(
+                intermediate.SetAttribNode(
+                    local_bool_instance.vname, 3, 0, local_node.vname
+                )
+            )
+            self.instructions.append(
+                intermediate.BooleanNegation(local_bool_instance.vname)
+            )
 
         return local_bool_instance
 
@@ -864,15 +1250,33 @@ class IntermediateVisitor(YAPLVisitor):
         local_node = self.def_internal_var(name)
         local_left = self.visit(node.left)
         local_right = self.visit(node.right)
-        self.instructions.append(intermediate.GetAttribNode(local_left.vname, 2, 0, local_left.vname))
-        self.instructions.append(intermediate.GetAttribNode(local_right.vname, 2, 0, local_right.vname))
-        self.instructions.append(intermediate.MinusNode(local_left.vname, local_right.vname, local_node.vname))
+        self.instructions.append(
+            intermediate.GetAttribNode(local_left.vname, 2, 0, local_left.vname)
+        )
+        self.instructions.append(
+            intermediate.GetAttribNode(local_right.vname, 2, 0, local_right.vname)
+        )
+        self.instructions.append(
+            intermediate.MinusNode(
+                local_left.vname, local_right.vname, local_node.vname
+            )
+        )
         # local_node.value = self.visit(base.MinusNode(node.left, node.right))
-        self.instructions.append(intermediate.LessEqualNode(local_node.vname, local_node.vname))
+        self.instructions.append(
+            intermediate.LessEqualNode(local_node.vname, local_node.vname)
+        )
         name = self.get_variable_name("bool_instance_" + str(self.local_vars_count))
         local_bool_instance = self.def_internal_var(name)
-        self.instructions.append(intermediate.AllocateNode(4, str(3), str(4), "Bool_dispatch_table", local_bool_instance.vname))
-        self.instructions.append(intermediate.SetAttribNode(local_bool_instance.vname, 3, 0, local_node.vname))
+        self.instructions.append(
+            intermediate.AllocateNode(
+                4, str(3), str(4), "Bool_dispatch_table", local_bool_instance.vname
+            )
+        )
+        self.instructions.append(
+            intermediate.SetAttribNode(
+                local_bool_instance.vname, 3, 0, local_node.vname
+            )
+        )
         return local_bool_instance
 
     @visitor.when(base.LessThanNode)
@@ -881,15 +1285,33 @@ class IntermediateVisitor(YAPLVisitor):
         local_node = self.def_internal_var(name)
         local_left = self.visit(node.left)
         local_right = self.visit(node.right)
-        self.instructions.append(intermediate.GetAttribNode(local_left.vname, 2, 0, local_left.vname))
-        self.instructions.append(intermediate.GetAttribNode(local_right.vname, 2, 0, local_right.vname))
-        self.instructions.append(intermediate.MinusNode(local_left.vname, local_right.vname, local_node.vname))
+        self.instructions.append(
+            intermediate.GetAttribNode(local_left.vname, 2, 0, local_left.vname)
+        )
+        self.instructions.append(
+            intermediate.GetAttribNode(local_right.vname, 2, 0, local_right.vname)
+        )
+        self.instructions.append(
+            intermediate.MinusNode(
+                local_left.vname, local_right.vname, local_node.vname
+            )
+        )
         # local_node.value = self.visit(base.MinusNode(node.left, node.right))
-        self.instructions.append(intermediate.LessNode(local_node.vname, local_node.vname))
+        self.instructions.append(
+            intermediate.LessNode(local_node.vname, local_node.vname)
+        )
         name = self.get_variable_name("bool_instance_" + str(self.local_vars_count))
         local_bool_instance = self.def_internal_var(name)
-        self.instructions.append(intermediate.AllocateNode(4, str(3), str(4), "Bool_dispatch_table", local_bool_instance.vname))
-        self.instructions.append(intermediate.SetAttribNode(local_bool_instance.vname, 3, 0, local_node.vname))
+        self.instructions.append(
+            intermediate.AllocateNode(
+                4, str(3), str(4), "Bool_dispatch_table", local_bool_instance.vname
+            )
+        )
+        self.instructions.append(
+            intermediate.SetAttribNode(
+                local_bool_instance.vname, 3, 0, local_node.vname
+            )
+        )
         return local_bool_instance
 
     @visitor.when(base.PlusNode)
@@ -900,14 +1322,24 @@ class IntermediateVisitor(YAPLVisitor):
         local_node = self.def_internal_var(name)
         left = self.visit(node.left)
         right = self.visit(node.right)
-        self.instructions.append(intermediate.GetAttribNode(left.vname, 2, 0, left.vname))
-        self.instructions.append(intermediate.GetAttribNode(right.vname, 2, 0, right.vname))
+        self.instructions.append(
+            intermediate.GetAttribNode(left.vname, 2, 0, left.vname)
+        )
+        self.instructions.append(
+            intermediate.GetAttribNode(right.vname, 2, 0, right.vname)
+        )
         plus_node = intermediate.PlusNode(left.vname, right.vname, value_node.vname)
         self.instructions.append(plus_node)
         self.instructions.append(intermediate.PushaNode())
-        self.instructions.append(intermediate.StaticCallNode("init_Int", local_node.vname, local_node.vname, 0))
+        self.instructions.append(
+            intermediate.StaticCallNode(
+                "init_Int", local_node.vname, local_node.vname, 0
+            )
+        )
         self.instructions.append(intermediate.PopaNode())
-        self.instructions.append(intermediate.SetAttribNode(local_node.vname, 2, 0, value_node.vname))
+        self.instructions.append(
+            intermediate.SetAttribNode(local_node.vname, 2, 0, value_node.vname)
+        )
         # local_node.value = plus_node.value
         return local_node
 
@@ -919,14 +1351,24 @@ class IntermediateVisitor(YAPLVisitor):
         local_node = self.def_internal_var(name)
         left = self.visit(node.left)
         right = self.visit(node.right)
-        self.instructions.append(intermediate.GetAttribNode(left.vname, 2, 0, left.vname))
-        self.instructions.append(intermediate.GetAttribNode(right.vname, 2, 0, right.vname))
+        self.instructions.append(
+            intermediate.GetAttribNode(left.vname, 2, 0, left.vname)
+        )
+        self.instructions.append(
+            intermediate.GetAttribNode(right.vname, 2, 0, right.vname)
+        )
         minus_node = intermediate.MinusNode(left.vname, right.vname, value_node.vname)
         self.instructions.append(minus_node)
         self.instructions.append(intermediate.PushaNode())
-        self.instructions.append(intermediate.StaticCallNode("init_Int", local_node.vname, local_node.vname, 0))
+        self.instructions.append(
+            intermediate.StaticCallNode(
+                "init_Int", local_node.vname, local_node.vname, 0
+            )
+        )
         self.instructions.append(intermediate.PopaNode())
-        self.instructions.append(intermediate.SetAttribNode(local_node.vname, 2, 0, value_node.vname))
+        self.instructions.append(
+            intermediate.SetAttribNode(local_node.vname, 2, 0, value_node.vname)
+        )
         return local_node
 
     @visitor.when(base.StarNode)
@@ -937,14 +1379,24 @@ class IntermediateVisitor(YAPLVisitor):
         local_node = self.def_internal_var(name)
         left = self.visit(node.left)
         right = self.visit(node.right)
-        self.instructions.append(intermediate.GetAttribNode(left.vname, 2, 0, left.vname))
-        self.instructions.append(intermediate.GetAttribNode(right.vname, 2, 0, right.vname))
+        self.instructions.append(
+            intermediate.GetAttribNode(left.vname, 2, 0, left.vname)
+        )
+        self.instructions.append(
+            intermediate.GetAttribNode(right.vname, 2, 0, right.vname)
+        )
         star_node = intermediate.StarNode(left.vname, right.vname, value_node.vname)
         self.instructions.append(star_node)
         self.instructions.append(intermediate.PushaNode())
-        self.instructions.append(intermediate.StaticCallNode("init_Int", local_node.vname, local_node.vname, 0))
+        self.instructions.append(
+            intermediate.StaticCallNode(
+                "init_Int", local_node.vname, local_node.vname, 0
+            )
+        )
         self.instructions.append(intermediate.PopaNode())
-        self.instructions.append(intermediate.SetAttribNode(local_node.vname, 2, 0, value_node.vname))
+        self.instructions.append(
+            intermediate.SetAttribNode(local_node.vname, 2, 0, value_node.vname)
+        )
         # local_node.value = star_node.value
         return local_node
 
@@ -956,19 +1408,33 @@ class IntermediateVisitor(YAPLVisitor):
         local_node = self.def_internal_var(name)
         left = self.visit(node.left)
         right = self.visit(node.right)
-        self.instructions.append(intermediate.GetAttribNode(left.vname, 2, 0, left.vname))
-        self.instructions.append(intermediate.GetAttribNode(right.vname, 2, 0, right.vname))
+        self.instructions.append(
+            intermediate.GetAttribNode(left.vname, 2, 0, left.vname)
+        )
+        self.instructions.append(
+            intermediate.GetAttribNode(right.vname, 2, 0, right.vname)
+        )
         name = self.get_variable_name("var_" + str(self.local_vars_count))
         local_0_node = self.def_internal_var(name)
-        self.instructions.append(intermediate.EqualNode(right.vname, local_0_node.vname))
+        self.instructions.append(
+            intermediate.EqualNode(right.vname, local_0_node.vname)
+        )
         label_name = self.get_label_name("zero_division")
-        self.instructions.append(intermediate.GotoIfNode(local_0_node.vname, label_name))
+        self.instructions.append(
+            intermediate.GotoIfNode(local_0_node.vname, label_name)
+        )
         div_node = intermediate.DivNode(left.vname, right.vname, value_node.vname)
         self.instructions.append(div_node)
         self.instructions.append(intermediate.PushaNode())
-        self.instructions.append(intermediate.StaticCallNode("init_Int", local_node.vname, local_node.vname, 0))
+        self.instructions.append(
+            intermediate.StaticCallNode(
+                "init_Int", local_node.vname, local_node.vname, 0
+            )
+        )
         self.instructions.append(intermediate.PopaNode())
-        self.instructions.append(intermediate.SetAttribNode(local_node.vname, 2, 0, value_node.vname))
+        self.instructions.append(
+            intermediate.SetAttribNode(local_node.vname, 2, 0, value_node.vname)
+        )
         exit_label = self.get_label_name("exit_div")
         self.instructions.append(intermediate.GotoNode(exit_label))
         self.instructions.append(intermediate.LabelNode(label_name))
@@ -985,11 +1451,20 @@ class IntermediateVisitor(YAPLVisitor):
         value_node = self.def_internal_var(name)
 
         self.instructions.append(intermediate.PushaNode())
-        self.instructions.append(intermediate.StaticCallNode("init_Bool", local_node.vname, local_node.vname, 0))
+        self.instructions.append(
+            intermediate.StaticCallNode(
+                "init_Bool", local_node.vname, local_node.vname, 0
+            )
+        )
         self.instructions.append(intermediate.PopaNode())
-        self.instructions.append(intermediate.ValueNode(value_node.vname,
-                                              "0" if node.boolean_token == "false" else "1"))
-        self.instructions.append(intermediate.SetAttribNode(local_node.vname, 3, 0, value_node.vname))
+        self.instructions.append(
+            intermediate.ValueNode(
+                value_node.vname, "0" if node.boolean_token == "false" else "1"
+            )
+        )
+        self.instructions.append(
+            intermediate.SetAttribNode(local_node.vname, 3, 0, value_node.vname)
+        )
         return local_node
 
     @visitor.when(base.IntegerNode)
@@ -1001,10 +1476,18 @@ class IntermediateVisitor(YAPLVisitor):
         # self.instructions.append(intermediate.AllocateNode(4, str(2), str(4), "Int_dispatch_table",
         #                                          local_node.vname))
         self.instructions.append(intermediate.PushaNode())
-        self.instructions.append(intermediate.StaticCallNode("init_Int", local_node.vname, local_node.vname, 0))
+        self.instructions.append(
+            intermediate.StaticCallNode(
+                "init_Int", local_node.vname, local_node.vname, 0
+            )
+        )
         self.instructions.append(intermediate.PopaNode())
-        self.instructions.append(intermediate.ValueNode(value_node.vname, node.integer_token))
-        self.instructions.append(intermediate.SetAttribNode(local_node.vname, 2, 0, value_node.vname))
+        self.instructions.append(
+            intermediate.ValueNode(value_node.vname, node.integer_token)
+        )
+        self.instructions.append(
+            intermediate.SetAttribNode(local_node.vname, 2, 0, value_node.vname)
+        )
 
         return local_node
 
@@ -1018,10 +1501,18 @@ class IntermediateVisitor(YAPLVisitor):
         local_node = self.def_internal_var(name)
 
         self.instructions.append(intermediate.PushaNode())
-        self.instructions.append(intermediate.StaticCallNode("init_String", local_node.vname, local_node.vname, 0))
+        self.instructions.append(
+            intermediate.StaticCallNode(
+                "init_String", local_node.vname, local_node.vname, 0
+            )
+        )
         self.instructions.append(intermediate.PopaNode())
-        self.instructions.append(intermediate.LoadNode(data_node.vname, load_node.vname))
-        self.instructions.append(intermediate.SetAttribNode(local_node.vname, 4, 0, load_node.vname))
+        self.instructions.append(
+            intermediate.LoadNode(data_node.vname, load_node.vname)
+        )
+        self.instructions.append(
+            intermediate.SetAttribNode(local_node.vname, 4, 0, load_node.vname)
+        )
         return local_node
 
     @visitor.when(base.IntegerNegation)
@@ -1029,14 +1520,22 @@ class IntermediateVisitor(YAPLVisitor):
         expr = self.visit(node.value)
         name = self.get_variable_name("neg_" + str(self.local_vars_count))
         local_node = self.def_internal_var(name)
-        self.instructions.append(intermediate.GetAttribNode(expr.vname, 2, 0, expr.vname))
+        self.instructions.append(
+            intermediate.GetAttribNode(expr.vname, 2, 0, expr.vname)
+        )
         self.instructions.append(intermediate.ValueNode(local_node.vname, "0"))
         dif = intermediate.MinusNode(local_node.vname, expr.vname, local_node.vname)
         self.instructions.append(dif)
         name = self.get_variable_name("neg_instance_" + str(self.local_vars_count))
         local_int_instance = self.def_internal_var(name)
-        self.instructions.append(intermediate.AllocateNode(4, str(2), str(4), "Int_dispatch_table", local_int_instance.vname))
-        self.instructions.append(intermediate.SetAttribNode(local_int_instance.vname, 2, 0, local_node.vname))
+        self.instructions.append(
+            intermediate.AllocateNode(
+                4, str(2), str(4), "Int_dispatch_table", local_int_instance.vname
+            )
+        )
+        self.instructions.append(
+            intermediate.SetAttribNode(local_int_instance.vname, 2, 0, local_node.vname)
+        )
         return local_int_instance
 
     @visitor.when(base.StaticDispatchNode)
@@ -1051,20 +1550,25 @@ class IntermediateVisitor(YAPLVisitor):
             self.instructions.append(intermediate.ParamNode(p.vname))
         self.instructions.append(intermediate.ParamNode(instance.vname))
         dtype = node.dispatch_type
-        if node.dispatch_type == 'SELF_TYPE':
+        if node.dispatch_type == "SELF_TYPE":
             dtype = self.current_class
-        name = 'def_' + dtype + '_' + node.method
-        return_name = self.get_variable_name('call_dispatch_' + str(self.local_vars_count))
+        name = "def_" + dtype + "_" + node.method
+        return_name = self.get_variable_name(
+            "call_dispatch_" + str(self.local_vars_count)
+        )
         return_local = self.def_internal_var(return_name)
-        self.instructions.append(intermediate.StaticCallNode(name, instance.vname, return_local.vname,
-                                                   len(params) + 1))
+        self.instructions.append(
+            intermediate.StaticCallNode(
+                name, instance.vname, return_local.vname, len(params) + 1
+            )
+        )
         self.instructions.append(intermediate.PopaNode())
         return return_local
 
     @visitor.when(base.DynamicDispatchNode)
     def visit(self, node: base.DynamicDispatchNode):
         instance = self.current_class + "_" + self.curr_func_name + "_self_0"
-        if node.instance != 'self':
+        if node.instance != "self":
             instance = self.visit(node.instance).vname
         name = self.get_variable_name("is_void_" + str(self.local_vars_count))
         is_void = self.def_internal_var(name)
@@ -1080,17 +1584,22 @@ class IntermediateVisitor(YAPLVisitor):
         for arg in arguments:
             self.instructions.append(intermediate.ParamNode(arg.vname))
         self.instructions.append(intermediate.ParamNode(instance))
-        name = self.get_variable_name('dynamic_dispatch_' + str(self.local_vars_count))
+        name = self.get_variable_name("dynamic_dispatch_" + str(self.local_vars_count))
         return_local = self.def_internal_var(name)
 
         data_node = self.set_data('"' + node.method + '"')
-        name = self.get_variable_name('funct_name_' + str(self.local_vars_count))
+        name = self.get_variable_name("funct_name_" + str(self.local_vars_count))
         method_string = self.def_internal_var(name)
-        self.instructions.append(intermediate.LoadNode(data_node.vname, method_string.vname))
+        self.instructions.append(
+            intermediate.LoadNode(data_node.vname, method_string.vname)
+        )
 
         # self.instructions.append(intermediate.TypeOfNode(instance, type_of_return.vname))
-        self.instructions.append(intermediate.DynamicCallNode(method_string.vname, instance,
-                                                    return_local.vname, len(arguments) + 1))
+        self.instructions.append(
+            intermediate.DynamicCallNode(
+                method_string.vname, instance, return_local.vname, len(arguments) + 1
+            )
+        )
         self.instructions.append(intermediate.PopaNode())
         end_label = self.get_label_name("end_dispatch_label")
         self.instructions.append(intermediate.GotoNode(end_label))
@@ -1116,16 +1625,28 @@ class IntermediateVisitor(YAPLVisitor):
         local_var = self.def_internal_var(name)
         name = self.get_variable_name("read_instance_" + str(self.local_vars_count))
         local_instance = self.def_internal_var(name)
-        if node.method == 'in_string':
+        if node.method == "in_string":
             read_node = intermediate.ReadStringNode(local_var.vname)
             self.instructions.append(read_node)
-            self.instructions.append(intermediate.AllocateNode(4, str(4), str(4), "String_dispatch_table", local_instance.vname))
-            self.instructions.append(intermediate.SetAttribNode(local_instance.vname, 4, 0, local_var.vname))
+            self.instructions.append(
+                intermediate.AllocateNode(
+                    4, str(4), str(4), "String_dispatch_table", local_instance.vname
+                )
+            )
+            self.instructions.append(
+                intermediate.SetAttribNode(local_instance.vname, 4, 0, local_var.vname)
+            )
         else:
             read_node = intermediate.ReadIntegerNode(local_var.vname)
             self.instructions.append(read_node)
-            self.instructions.append(intermediate.AllocateNode(4, str(2), str(4), "Int_dispatch_table", local_instance.vname))
-            self.instructions.append(intermediate.SetAttribNode(local_instance.vname, 4, 0, local_var.vname))
+            self.instructions.append(
+                intermediate.AllocateNode(
+                    4, str(2), str(4), "Int_dispatch_table", local_instance.vname
+                )
+            )
+            self.instructions.append(
+                intermediate.SetAttribNode(local_instance.vname, 4, 0, local_var.vname)
+            )
         return local_instance
 
     @visitor.when(base.WhileNode)
@@ -1136,7 +1657,9 @@ class IntermediateVisitor(YAPLVisitor):
         self.label_count += 1
         self.instructions.append(intermediate.LabelNode(label0))
         cond_value = self.visit(node.predicate)
-        self.instructions.append(intermediate.GetAttribNode(cond_value.vname, 3, 0, cond_value.vname))
+        self.instructions.append(
+            intermediate.GetAttribNode(cond_value.vname, 3, 0, cond_value.vname)
+        )
         self.instructions.append(intermediate.GotoIfNode(cond_value.vname, label1))
         self.instructions.append(intermediate.GotoNode(label2))
         self.instructions.append(intermediate.LabelNode(label1))
@@ -1144,9 +1667,15 @@ class IntermediateVisitor(YAPLVisitor):
         self.visit(node.expr)
         self.instructions.append(intermediate.GotoNode(label0))
         self.instructions.append(intermediate.LabelNode(label2))
-        obj_instance_name = self.get_variable_name("while_object_void_" + str(self.local_vars_count))
+        obj_instance_name = self.get_variable_name(
+            "while_object_void_" + str(self.local_vars_count)
+        )
         obj_instance = self.def_internal_var(obj_instance_name)
-        self.instructions.append(intermediate.AllocateNode(4, str(1), str(4), "Object_dispatch_table", obj_instance.vname))
+        self.instructions.append(
+            intermediate.AllocateNode(
+                4, str(1), str(4), "Object_dispatch_table", obj_instance.vname
+            )
+        )
         return obj_instance
 
     @visitor.when(base.NewObjectNode)
@@ -1155,11 +1684,20 @@ class IntermediateVisitor(YAPLVisitor):
         local_node = self.def_internal_var(name)
         size = (len(node.context_type.types[node.type_new_object].attributes) + 3) * 4
         class_tag = self.get_class_tag(node.type_new_object)
-        self.instructions.append(intermediate.AllocateNode(size, str(class_tag), str(size),
-                                                 node.type_new_object + "_dispatch_table",
-                                                 local_node.vname))
-        self.instructions.append(intermediate.StaticCallNode("init_" + node.type_new_object, local_node.vname,
-                                                   local_node.vname, 0))
+        self.instructions.append(
+            intermediate.AllocateNode(
+                size,
+                str(class_tag),
+                str(size),
+                node.type_new_object + "_dispatch_table",
+                local_node.vname,
+            )
+        )
+        self.instructions.append(
+            intermediate.StaticCallNode(
+                "init_" + node.type_new_object, local_node.vname, local_node.vname, 0
+            )
+        )
         return local_node
 
     @visitor.when(base.ObjectNode)
@@ -1167,26 +1705,44 @@ class IntermediateVisitor(YAPLVisitor):
         name = self.get_variable_name("object_" + str(self.local_vars_count))
         local_node = self.def_internal_var(name)
         if node.name == "self":
-            self.instructions.append(intermediate.AssignNode(local_node.vname,
-                                                   self.current_class + "_" + self.curr_func_name + "_self_0"))
+            self.instructions.append(
+                intermediate.AssignNode(
+                    local_node.vname,
+                    self.current_class + "_" + self.curr_func_name + "_self_0",
+                )
+            )
         elif node.name in self.names_of_values:
             local_value = self.names_of_values[node.name][-1]
-            self.instructions.append(intermediate.AssignNode(local_node.vname, local_value))
+            self.instructions.append(
+                intermediate.AssignNode(local_node.vname, local_value)
+            )
         else:
-            t = self.dot_types[self.class_tag-1]
+            t = self.dot_types[self.class_tag - 1]
             attr_index = t.get_attr_index(node.name)
             # self.instructions.append(intermediate.GetAttribNode("self", self.class_tag, attr_index, local_node))
-            self.instructions.append(intermediate.GetAttribNode(self.current_class + "_" + self.curr_func_name +
-                                                      "_self_0", self.class_tag, attr_index, local_node.vname))
+            self.instructions.append(
+                intermediate.GetAttribNode(
+                    self.current_class + "_" + self.curr_func_name + "_self_0",
+                    self.class_tag,
+                    attr_index,
+                    local_node.vname,
+                )
+            )
         return local_node
 
     @visitor.when(base.PrintIntegerNode)
     def visit(self, node: base.PrintIntegerNode):
         local_str_node = self.visit(node.expr)
-        self.instructions.append(intermediate.GetAttribNode(local_str_node.vname, 4, 0, local_str_node.vname))
+        self.instructions.append(
+            intermediate.GetAttribNode(local_str_node.vname, 4, 0, local_str_node.vname)
+        )
         self.instructions.append(intermediate.PrintIntegerNode(local_str_node.vname))
-        self.instructions.append(intermediate.AssignNode(local_str_node.vname,
-                                               self.current_class + "_" + self.curr_func_name + "_self_0"))
+        self.instructions.append(
+            intermediate.AssignNode(
+                local_str_node.vname,
+                self.current_class + "_" + self.curr_func_name + "_self_0",
+            )
+        )
         return local_str_node
 
     @visitor.when(base.PrintStringNode)
@@ -1194,10 +1750,16 @@ class IntermediateVisitor(YAPLVisitor):
         local_str_node = self.visit(node.string_token)
         # name = self.get_variable_name("string_" + str(self.local_vars_count))
         # local_str_node = self.def_internal_var(name)
-        self.instructions.append(intermediate.GetAttribNode(local_str_node.vname, 4, 0, local_str_node.vname))
+        self.instructions.append(
+            intermediate.GetAttribNode(local_str_node.vname, 4, 0, local_str_node.vname)
+        )
         self.instructions.append(intermediate.PrintStringNode(local_str_node.vname))
-        self.instructions.append(intermediate.AssignNode(local_str_node.vname,
-                                               self.current_class + "_" + self.curr_func_name + "_self_0"))
+        self.instructions.append(
+            intermediate.AssignNode(
+                local_str_node.vname,
+                self.current_class + "_" + self.curr_func_name + "_self_0",
+            )
+        )
         return local_str_node
 
     @visitor.when(base.CaseNode)
@@ -1208,13 +1770,17 @@ class IntermediateVisitor(YAPLVisitor):
         name = self.get_variable_name("case_expr_type_" + str(self.local_vars_count))
         expr_type = self.def_internal_var(name)
 
-        self.instructions.append(intermediate.TypeOfNode(expr_local.vname, expr_type.vname))
+        self.instructions.append(
+            intermediate.TypeOfNode(expr_local.vname, expr_type.vname)
+        )
         y_name = self.get_variable_name("case_y_" + str(self.local_vars_count))
         y_type = self.def_internal_var(y_name)
 
         self.instructions.append(intermediate.ValueNode(y_type.vname, "1"))
         # self.instructions.append(intermediate.AssignNode(, "1"))  # Asignando el tipo de Object
-        dest_name = self.get_variable_name("case_dest_expr_" + str(self.local_vars_count))
+        dest_name = self.get_variable_name(
+            "case_dest_expr_" + str(self.local_vars_count)
+        )
         dest_local = self.def_internal_var(dest_name)
 
         self.instructions.append(intermediate.ValueNode(dest_local.vname, "0"))
@@ -1226,52 +1792,100 @@ class IntermediateVisitor(YAPLVisitor):
         expr_labels = [expr_i_label]
 
         for i in range(len(node.actions)):
-            name = self.get_variable_name("t_action_value_" + str(i) + "_" + str(self.local_vars_count))
+            name = self.get_variable_name(
+                "t_action_value_" + str(i) + "_" + str(self.local_vars_count)
+            )
             action_i_var_local = self.def_internal_var(name)
             self.instructions.append(intermediate.PushaNode())
-            self.instructions.append(intermediate.StaticCallNode("init_" + node.actions[i].action_type, action_i_var_local.vname,
-                                                       action_i_var_local.vname, 0))
+            self.instructions.append(
+                intermediate.StaticCallNode(
+                    "init_" + node.actions[i].action_type,
+                    action_i_var_local.vname,
+                    action_i_var_local.vname,
+                    0,
+                )
+            )
             self.instructions.append(intermediate.PopaNode())
 
-            name = self.get_variable_name("t_action_" + str(i) + "_" + str(self.local_vars_count))
+            name = self.get_variable_name(
+                "t_action_" + str(i) + "_" + str(self.local_vars_count)
+            )
             action_i_local = self.def_internal_var(name)
 
-            self.instructions.append(intermediate.TypeOfNode(action_i_var_local.vname, action_i_local.vname))
+            self.instructions.append(
+                intermediate.TypeOfNode(action_i_var_local.vname, action_i_local.vname)
+            )
             name = self.get_variable_name("temp_" + str(self.local_vars_count))
             temp = self.def_internal_var(name)
 
             # self.instructions.append(intermediate.GetAttribNode(expr_type.vname, 2, 0, expr_type.vname))
-            self.instructions.append(intermediate.AssignNode(temp.vname, expr_type.vname))
+            self.instructions.append(
+                intermediate.AssignNode(temp.vname, expr_type.vname)
+            )
             label_name = self.get_label_name("Next_" + str(i))
             self.instructions.append(intermediate.LabelNode(label_name))
             name = self.get_variable_name("sub_result_" + str(self.local_vars_count))
             sub_result = self.def_internal_var(name)
 
-            self.instructions.append(intermediate.MinusNode(expr_type.vname, action_i_local.vname, sub_result.vname))
-            self.instructions.append(intermediate.EqualNode(sub_result.vname, sub_result.vname))
+            self.instructions.append(
+                intermediate.MinusNode(
+                    expr_type.vname, action_i_local.vname, sub_result.vname
+                )
+            )
+            self.instructions.append(
+                intermediate.EqualNode(sub_result.vname, sub_result.vname)
+            )
             # self.instructions.append(intermediate.GotoIfNode(sub_result.vname, if_label_1))
             # self.instructions.append(intermediate.GotoNode(expr_i_label))
-            self.instructions.append(intermediate.GotoIfNode(sub_result.vname, expr_i_label))
+            self.instructions.append(
+                intermediate.GotoIfNode(sub_result.vname, expr_i_label)
+            )
             # self.instructions.append(intermediate.LabelNode(if_label_1))
-            self.instructions.append(intermediate.MinusNode(temp.vname, object_type_local.vname, sub_result.vname))
-            self.instructions.append(intermediate.EqualNode(sub_result.vname, sub_result.vname))
-            if_label_2 = self.get_label_name("action_" + str(i+1))
+            self.instructions.append(
+                intermediate.MinusNode(
+                    temp.vname, object_type_local.vname, sub_result.vname
+                )
+            )
+            self.instructions.append(
+                intermediate.EqualNode(sub_result.vname, sub_result.vname)
+            )
+            if_label_2 = self.get_label_name("action_" + str(i + 1))
             expr_labels.append(if_label_2)
 
-            self.instructions.append(intermediate.GotoIfNode(sub_result.vname, if_label_2))
-            self.instructions.append(intermediate.MinusNode(temp.vname, y_type.vname, sub_result.vname))
-            self.instructions.append(intermediate.EqualNode(sub_result.vname, sub_result.vname))
-            self.instructions.append(intermediate.GotoIfNode(sub_result.vname, if_label_2))
+            self.instructions.append(
+                intermediate.GotoIfNode(sub_result.vname, if_label_2)
+            )
+            self.instructions.append(
+                intermediate.MinusNode(temp.vname, y_type.vname, sub_result.vname)
+            )
+            self.instructions.append(
+                intermediate.EqualNode(sub_result.vname, sub_result.vname)
+            )
+            self.instructions.append(
+                intermediate.GotoIfNode(sub_result.vname, if_label_2)
+            )
 
             # self.instructions.append(intermediate.LabelNode(other_inherits_label))
             # self.instructions.append(intermediate.ParamNode(temp.vname))
-            parent_local = self.get_variable_name("parent_" + str(self.local_vars_count))
+            parent_local = self.get_variable_name(
+                "parent_" + str(self.local_vars_count)
+            )
             parent_local = self.def_internal_var(parent_local)
-            self.instructions.append(intermediate.ParentOfNode(temp.vname, parent_local.vname))
+            self.instructions.append(
+                intermediate.ParentOfNode(temp.vname, parent_local.vname)
+            )
 
-            self.instructions.append(intermediate.MinusNode(temp.vname, action_i_local.vname, sub_result.vname))
-            self.instructions.append(intermediate.EqualNode(sub_result.vname, sub_result.vname))
-            self.instructions.append(intermediate.GotoIfNode(sub_result.vname, label_name))
+            self.instructions.append(
+                intermediate.MinusNode(
+                    temp.vname, action_i_local.vname, sub_result.vname
+                )
+            )
+            self.instructions.append(
+                intermediate.EqualNode(sub_result.vname, sub_result.vname)
+            )
+            self.instructions.append(
+                intermediate.GotoIfNode(sub_result.vname, label_name)
+            )
 
             other_inherits_label = self.get_label_name("other_inherits")
             self.instructions.append(intermediate.LabelNode(other_inherits_label))
@@ -1284,18 +1898,40 @@ class IntermediateVisitor(YAPLVisitor):
             # if_label_1 = self.get_label_name("checkIfIsObject")
             # self.instructions.append(intermediate.GotoIfNode(sub_result.vname, if_label_1))
 
-            self.instructions.append(intermediate.MinusNode(object_type_local.vname, temp.vname, sub_result.vname))
-            self.instructions.append(intermediate.EqualNode(sub_result.vname, sub_result.vname))
-            self.instructions.append(intermediate.GotoIfNode(sub_result.vname, if_label_2))
+            self.instructions.append(
+                intermediate.MinusNode(
+                    object_type_local.vname, temp.vname, sub_result.vname
+                )
+            )
+            self.instructions.append(
+                intermediate.EqualNode(sub_result.vname, sub_result.vname)
+            )
+            self.instructions.append(
+                intermediate.GotoIfNode(sub_result.vname, if_label_2)
+            )
 
-            self.instructions.append(intermediate.MinusNode(y_type.vname, temp.vname, sub_result.vname))
-            self.instructions.append(intermediate.EqualNode(sub_result.vname, sub_result.vname))
-            self.instructions.append(intermediate.MinusNode(object_type_local.vname, sub_result.vname, sub_result.vname))
-            self.instructions.append(intermediate.GotoIfNode(sub_result.vname, other_inherits_label))
+            self.instructions.append(
+                intermediate.MinusNode(y_type.vname, temp.vname, sub_result.vname)
+            )
+            self.instructions.append(
+                intermediate.EqualNode(sub_result.vname, sub_result.vname)
+            )
+            self.instructions.append(
+                intermediate.MinusNode(
+                    object_type_local.vname, sub_result.vname, sub_result.vname
+                )
+            )
+            self.instructions.append(
+                intermediate.GotoIfNode(sub_result.vname, other_inherits_label)
+            )
 
-            self.instructions.append(intermediate.AssignNode(y_type.vname, action_i_local.vname))
+            self.instructions.append(
+                intermediate.AssignNode(y_type.vname, action_i_local.vname)
+            )
 
-            self.instructions.append(intermediate.LoadNode(dest_local.vname, expr_i_label))
+            self.instructions.append(
+                intermediate.LoadNode(dest_local.vname, expr_i_label)
+            )
 
             if i < len(node.actions) - 1:
                 self.instructions.append(intermediate.StackGotoNode(dest_local.vname))
@@ -1318,29 +1954,59 @@ class IntermediateVisitor(YAPLVisitor):
         for i in range(len(node.actions)):
             # expr_i_label = self.get_label_name("expr_" + str(i))
             self.instructions.append(intermediate.LabelNode(expr_labels[i]))
-            name = self.get_variable_name("action_" + str(i) + "_var_" + str(self.local_vars_count))
+            name = self.get_variable_name(
+                "action_" + str(i) + "_var_" + str(self.local_vars_count)
+            )
             action_i_var_local = self.def_internal_var(name)
-            if node.actions[i].action_type in ['Int', 'Bool']:
+            if node.actions[i].action_type in ["Int", "Bool"]:
                 # self.instructions.append(intermediate.GetAttribNode(expr_local.vname, 2, 0, expr_local.vname))
-                self.instructions.append(intermediate.CopyNode(expr_local.vname, action_i_var_local.vname))
-            elif node.actions[i].action_type == 'String':
-                self.instructions.append(intermediate.CopyNode(expr_local.vname, action_i_var_local.vname))
-                attr_string = self.get_variable_name('attr_string_' + str(self.local_vars_count))
+                self.instructions.append(
+                    intermediate.CopyNode(expr_local.vname, action_i_var_local.vname)
+                )
+            elif node.actions[i].action_type == "String":
+                self.instructions.append(
+                    intermediate.CopyNode(expr_local.vname, action_i_var_local.vname)
+                )
+                attr_string = self.get_variable_name(
+                    "attr_string_" + str(self.local_vars_count)
+                )
                 attr_value = self.def_internal_var(attr_string)
-                self.instructions.append(intermediate.GetAttribNode(action_i_var_local.vname, 4, 0, attr_value.vname))
-                lo_index = self.get_variable_name('lo_index_' + str(self.local_vars_count))
+                self.instructions.append(
+                    intermediate.GetAttribNode(
+                        action_i_var_local.vname, 4, 0, attr_value.vname
+                    )
+                )
+                lo_index = self.get_variable_name(
+                    "lo_index_" + str(self.local_vars_count)
+                )
                 lo_value = self.def_internal_var(lo_index)
-                hi_index = self.get_variable_name('hi_index_' + str(self.local_vars_count))
+                hi_index = self.get_variable_name(
+                    "hi_index_" + str(self.local_vars_count)
+                )
                 hi_value = self.def_internal_var(hi_index)
-                self.instructions.append(intermediate.ValueNode(lo_value.vname, '0'))
-                self.instructions.append(intermediate.LengthNode(attr_value.vname, hi_value.vname))
-                temp_string = self.get_variable_name('temp_string_' + str(self.local_vars_count))
+                self.instructions.append(intermediate.ValueNode(lo_value.vname, "0"))
+                self.instructions.append(
+                    intermediate.LengthNode(attr_value.vname, hi_value.vname)
+                )
+                temp_string = self.get_variable_name(
+                    "temp_string_" + str(self.local_vars_count)
+                )
                 temp_value = self.def_internal_var(temp_string)
                 self.instructions.append(
-                    intermediate.SubstringNode(attr_value.vname, lo_value.vname, hi_value.vname, temp_value.vname))
-                self.instructions.append(intermediate.SetAttribNode(expr_local.vname, 4, 0, temp_value.vname))
+                    intermediate.SubstringNode(
+                        attr_value.vname,
+                        lo_value.vname,
+                        hi_value.vname,
+                        temp_value.vname,
+                    )
+                )
+                self.instructions.append(
+                    intermediate.SetAttribNode(expr_local.vname, 4, 0, temp_value.vname)
+                )
             else:
-                self.instructions.append(intermediate.AssignNode(action_i_var_local.vname, expr_local.vname))
+                self.instructions.append(
+                    intermediate.AssignNode(action_i_var_local.vname, expr_local.vname)
+                )
             case_result = self.visit(node.actions[i].body)
             self.instructions.append(intermediate.GotoNode(finish_label))
         self.instructions.append(intermediate.LabelNode(finish_label))
@@ -1350,7 +2016,7 @@ class IntermediateVisitor(YAPLVisitor):
 
     @visitor.when(base.LetInNode)
     def visit(self, node: base.LetInNode):
-        self.curr_func_name += '_let'
+        self.curr_func_name += "_let"
         current_vars_declared = []
 
         for declaration in node.declaration_list:
@@ -1360,7 +2026,7 @@ class IntermediateVisitor(YAPLVisitor):
         self.curr_func_name = self.curr_func_name[:-4]
 
         body_value = self.visit(node.expr)
-        name = self.get_variable_name('let_' + str(self.local_vars_count))
+        name = self.get_variable_name("let_" + str(self.local_vars_count))
         name_return = self.def_internal_var(name)
 
         for name in current_vars_declared:
@@ -1368,9 +2034,608 @@ class IntermediateVisitor(YAPLVisitor):
             if len(self.names_of_values[name]) == 0:
                 self.names_of_values.pop(name)
 
-        self.instructions.append(intermediate.AssignNode(name_return.vname, body_value.vname))
-        local_node = intermediate.LocalNode(name_return.vname, self.local_vars_count, body_value)
+        self.instructions.append(
+            intermediate.AssignNode(name_return.vname, body_value.vname)
+        )
+        local_node = intermediate.LocalNode(
+            name_return.vname, self.local_vars_count, body_value
+        )
         self.local_vars_count += 1
         return local_node
 
     # endregion
+
+
+class TACVisitor(YAPL2Visitor):
+    def __init__(self, types_table):
+        super().__init__()
+        self.types_table = types_table
+        self.symbol_table = SymbolsTable(types_table)
+        self.constant_offset = 0
+        self.temp_offset = 0
+        self.temp_qty = 0
+        self.label_qty = 0
+
+    def aggregateResult(self, aggregate, _next):
+        if aggregate and _next:
+            if type(aggregate) is list:
+                aggregate.append(_next)
+            else:
+                aggregate = [aggregate, _next]
+        return aggregate or _next
+
+    # Visit a parse tree produced by YAPL2Parser#program.
+    def visitProgram(self, ctx: YAPL2Parser.ProgramContext):
+        values = self.visitChildren(ctx)
+        if type(values) == QuadrupleItemNode:
+            values = [values]
+        return values
+
+    # Visit a parse tree produced by YAPL2Parser#class_exp.
+    def visitClass_exp(self, ctx: YAPL2Parser.Class_expContext):
+        code = []
+        self.constant_offset = 0
+        self.temp_offset = 0
+        self.temp_qty = 0
+        self.label_qty = 0
+        id = str(ctx.TYPE()[0])
+        code += [Label(name=id)]
+        self.symbol_table.push_scope(id, is_class_expr=True)
+        children = self.visitChildren(ctx)
+        self.symbol_table.pop_scope()
+        if type(children) is QuadrupleItemNode:
+            c: QuadrupleItemNode = children
+            code += c.code
+        else:
+            for i in range(len(children)):
+                c: QuadrupleItemNode = children[i]
+                code += c.code
+        quadruple_item_node = self.quadruple_item_node(ctx=ctx, code=code)
+        return quadruple_item_node
+
+    # Visit a parse tree produced by YAPL2Parser#attribute.
+    def visitAttribute(self, ctx: YAPL2Parser.AttributeContext):
+        return self.visitChildren(ctx)
+
+    # Visit a parse tree produced by YAPL2Parser#declaration.
+    def visitDeclaration(self, ctx: YAPL2Parser.DeclarationContext):
+        name = str(ctx.ID())
+        type = str(ctx.TYPE())
+        self.symbol_table.add_symbol(name, type)
+        c1: QuadrupleItemNode = self.visitChildren(ctx)
+        if c1:
+            symbol = self.symbol_table.get_symbol(name)
+            resAddress = Name(
+                class_name=self.symbol_table.get_active_class(),
+                type=symbol.type,
+                name=symbol.name,
+                offset=symbol.offset,
+                length=symbol.length,
+            )
+            quadruple_item_node = self.quadruple_item_node(
+                ctx=ctx,
+                address=resAddress,
+                code=c1.code
+                + [QuadrupleNode(op="=", res=resAddress, arg_1=c1.address)],
+            )
+            return quadruple_item_node
+
+    # Visit a parse tree produced by YAPL2Parser#method.
+    def visitMethod(self, ctx: YAPL2Parser.MethodContext):
+        code = []
+        name = str(ctx.ID())
+        self.symbol_table.push_scope(name)
+        children = self.visitChildren(ctx)
+        self.symbol_table.pop_scope()
+        code += [Label(name=name)]
+        if type(children) is QuadrupleItemNode:
+            c: QuadrupleItemNode = children
+            code += c.code
+            returnAddress = c.address
+        else:
+            for i in range(len(children)):
+                c: QuadrupleItemNode = children[i]
+                code += c.code
+            returnAddress = children[-1].address
+        quadruple_item_node = self.quadruple_item_node(
+            ctx=ctx, code=code + [QuadrupleNode(op="return", arg_1=returnAddress)]
+        )
+        return quadruple_item_node
+
+    # Visit a parse tree produced by YAPL2Parser#formal.
+    def visitFormal(self, ctx: YAPL2Parser.FormalContext):
+        name = str(ctx.ID())
+        type = str(ctx.TYPE())
+        self.symbol_table.add_symbol(name, type)
+
+    # Visit a parse tree produced by YAPL2Parser#new.
+    def visitNew(self, ctx: YAPL2Parser.NewContext):
+        class_name = str(ctx.TYPE())
+        symbol = self.types_table.get_class(class_name)
+        quadruple_item_node = self.quadruple_item_node(
+            ctx=ctx,
+            address=Name(
+                class_name=class_name,
+                type=class_name,
+                name="self",
+                offset=0,
+                length=symbol.length,
+            ),
+        )
+        return quadruple_item_node
+
+    # Visit a parse tree produced by YAPL2Parser#negInteger.
+    def visitNegInteger(self, ctx: YAPL2Parser.NegIntegerContext):
+        c1: QuadrupleItemNode = self.visitChildren(ctx)
+        offset, count = self.get_temp_offset_and_count(c1.address.length)
+        address = Temp(
+            index=count, type=c1.address.type, offset=offset, length=c1.address.length
+        )
+        quadruple_item_node = self.quadruple_item_node(
+            ctx=ctx,
+            address=address,
+            code=c1.code + [QuadrupleNode(op="-", arg_1=c1.address, res=address)],
+        )
+        return quadruple_item_node
+
+    # Visit a parse tree produced by YAPL2Parser#string.
+    def visitString(self, ctx: YAPL2Parser.StringContext):
+        length = settings.ELEMENTAL_TYPES_SIZES["String"]
+        quadruple_item_node = self.quadruple_item_node(
+            ctx=ctx,
+            address=Constant(
+                value=ctx.getText(),
+                type="String",
+                offset=self.get_constant_offset(length),
+                length=length,
+            ),
+        )
+        return quadruple_item_node
+
+    # Visit a parse tree produced by YAPL2Parser#blocks.
+    def visitBlocks(self, ctx: YAPL2Parser.BlocksContext):
+        code = []
+        quadruple_item_node = self.quadruple_item_node(ctx=ctx)
+        children = self.visitChildren(ctx)
+        if type(children) is QuadrupleItemNode:
+            c: QuadrupleItemNode = children
+            code += c.code
+            returnAddress = c.address
+        else:
+            for i in range(len(children)):
+                c: QuadrupleItemNode = children[i]
+                code += c.code
+            returnAddress = children[-1].address
+        quadruple_item_node = quadruple_item_node.safe_values(
+            address=returnAddress, code=code
+        )
+        return quadruple_item_node
+
+    # Visit a parse tree produced by YAPL2Parser#isvoid.
+    def visitIsvoid(self, ctx: YAPL2Parser.IsvoidContext):
+        c1: QuadrupleItemNode = self.visitChildren(ctx)
+        offset, count = self.get_temp_offset_and_count(c1.address.length)
+        address = Temp(
+            index=count, type=c1.address.type, offset=offset, length=c1.address.length
+        )
+        quadruple_item_node = self.quadruple_item_node(
+            ctx=ctx,
+            address=address,
+            code=c1.code + [QuadrupleNode(op="isvoid", arg_1=c1.address, res=address)],
+        )
+        return quadruple_item_node
+
+    # Visit a parse tree produced by YAPL2Parser#assignment.
+    def visitAssignment(self, ctx: YAPL2Parser.AssignmentContext):
+        c1: QuadrupleItemNode = self.visitChildren(ctx)
+        name = str(ctx.ID())
+        symbol = self.symbol_table.get_symbol(name)
+        resAddress = Name(
+            class_name=self.symbol_table.get_active_class(),
+            type=symbol.type,
+            name=symbol.name,
+            offset=symbol.offset,
+            length=symbol.length,
+        )
+        quadruple_item_node = self.quadruple_item_node(
+            ctx=ctx,
+            address=resAddress,
+            code=c1.code + [QuadrupleNode(op="=", res=resAddress, arg_1=c1.address)],
+        )
+        return quadruple_item_node
+
+    # Visit a parse tree produced by YAPL2Parser#false.
+    def visitFalse(self, ctx: YAPL2Parser.FalseContext):
+        length = settings.ELEMENTAL_TYPES_SIZES["Bool"]
+        quadruple_item_node = self.quadruple_item_node(ctx=ctx)
+        quadruple_item_node = quadruple_item_node.safe_values(
+            address=Constant(
+                value=ctx.getText(),
+                type="Bool",
+                offset=self.get_constant_offset(length),
+                length=length,
+            ),
+            code=[QuadrupleNode(op="goto", arg_1=quadruple_item_node.false)]
+            if quadruple_item_node.false
+            else None,
+        )
+        return quadruple_item_node
+
+    # Visit a parse tree produced by YAPL2Parser#integer.
+    def visitInteger(self, ctx: YAPL2Parser.IntegerContext):
+        length = settings.ELEMENTAL_TYPES_SIZES["Int"]
+        quadruple_item_node = self.quadruple_item_node(
+            ctx=ctx,
+            address=Constant(
+                value=ctx.getText(),
+                type="Int",
+                offset=self.get_constant_offset(length),
+                length=length,
+            ),
+        )
+        return quadruple_item_node
+
+    # Visit a parse tree produced by YAPL2Parser#while.
+    def visitWhile(self, ctx: YAPL2Parser.WhileContext):
+        next = self.generate_new_label()
+        start = self.generate_new_label()
+        label1 = self.generate_new_label()
+        ctx.expr(0).obj = QuadrupleItemNode(true=label1, false=next)
+        ctx.expr(1).obj = QuadrupleItemNode(next=start)
+        result = self.visitChildren(ctx)
+        c1: QuadrupleItemNode = result[0]
+        c2: QuadrupleItemNode = result[1]
+        quadruple_item_node = self.quadruple_item_node(
+            ctx=ctx,
+            address=c2.address,
+            code=[start]
+            + c1.code
+            + [c1.true]
+            + c2.code
+            + [QuadrupleNode(op="goto", arg_1=start)]
+            + [next],
+        )
+        return quadruple_item_node
+
+    # Visit a parse tree produced by YAPL2Parser#add_sub.
+    def visitAdd_sub(self, ctx: YAPL2Parser.Add_subContext):
+        result = self.visitChildren(ctx)
+        c1: QuadrupleItemNode = result[0]
+        c2: QuadrupleItemNode = result[1]
+        offset, count = self.get_temp_offset_and_count(c1.address.length)
+        address = Temp(
+            index=count, type=c1.address.type, offset=offset, length=c1.address.length
+        )
+        quadruple_item_node = self.quadruple_item_node(
+            ctx=ctx,
+            address=address,
+            code=c1.code
+            + c2.code
+            + [
+                QuadrupleNode(
+                    op=ctx.children[1].getText(),
+                    arg_1=c1.address,
+                    res=address,
+                    arg_2=c2.address,
+                )
+            ],
+        )
+        return quadruple_item_node
+
+    # Visit a parse tree produced by YAPL2Parser#dispatch.
+    def visitDispatch(self, ctx: YAPL2Parser.DispatchContext):
+        code = []
+        children = self.visitChildren(ctx)
+        c1: QuadrupleItemNode = (
+            children if type(children) is QuadrupleItemNode else children[0]
+        )
+        code += c1.code
+        method_name = str(ctx.ID())
+        class_name = str(ctx.TYPE()) if ctx.TYPE() else c1.address.type
+        method = (
+            self.types_table.find_class_method(class_name, method_name, str(ctx.TYPE()))
+            if ctx.TYPE()
+            else self.types_table.get_method(class_name, method_name)
+        )
+        offset, count = self.get_temp_offset_and_count(method.length)
+        if type(children) is not QuadrupleItemNode:
+            for i in range(1, len(children)):
+                symbol = method.get_param_by_pos(i - 1)
+                c: QuadrupleItemNode = children[i]
+                code += c.code + [
+                    QuadrupleNode(
+                        op="=",
+                        res=Name(
+                            class_name=class_name,
+                            type=symbol.type,
+                            name=symbol.name,
+                            offset=symbol.offset,
+                            length=symbol.length,
+                        ),
+                        arg_1=c.address,
+                    )
+                ]
+        address = Temp(
+            index=count, type=method.type, offset=offset, length=method.length
+        )
+        quadruple_item_node = self.quadruple_item_node(
+            ctx=ctx,
+            address=address,
+            code=code
+            + [
+                QuadrupleNode(
+                    op="call",
+                    arg_1=Function(class_name=class_name, name=method_name),
+                    res=address,
+                )
+            ],
+        )
+        return quadruple_item_node
+
+    # Visit a parse tree produced by YAPL2Parser#star_division.
+    def visitStar_division(self, ctx: YAPL2Parser.Star_divisionContext):
+        result = self.visitChildren(ctx)
+        c1: QuadrupleItemNode = result[0]
+        c2: QuadrupleItemNode = result[1]
+        offset, count = self.get_temp_offset_and_count(c1.address.length)
+        address = Temp(
+            index=count, type=c1.address.type, offset=offset, length=c1.address.length
+        )
+        quadruple_item_node = self.quadruple_item_node(
+            ctx=ctx,
+            address=address,
+            code=c1.code
+            + c2.code
+            + [
+                QuadrupleNode(
+                    op=ctx.children[1].getText(),
+                    arg_1=c1.address,
+                    res=address,
+                    arg_2=c2.address,
+                )
+            ],
+        )
+        return quadruple_item_node
+
+        # Visit a parse tree produced by YAPL2Parser#not.
+
+    def visitNot(self, ctx: YAPL2Parser.NotContext):
+        c1: QuadrupleItemNode = self.visitChildren(ctx)
+        quadruple_item_node = self.quadruple_item_node(ctx=ctx)
+        quadruple_item_node = quadruple_item_node.safe_values(
+            code=c1.code, true=quadruple_item_node.false, false=quadruple_item_node.true
+        )
+        print(
+            "quadruple_item_node =",
+            quadruple_item_node,
+            quadruple_item_node.true,
+            quadruple_item_node.false,
+            c1.code[0],
+        )
+        return quadruple_item_node
+
+    # Visit a parse tree produced by YAPL2Parser#condition.
+    def visitCondition(self, ctx: YAPL2Parser.ConditionContext):
+        result = self.visitChildren(ctx)
+        c1: QuadrupleItemNode = result[0]
+        c2: QuadrupleItemNode = result[1]
+        quadruple_item_node = self.quadruple_item_node(ctx=ctx)
+        quadruple_item_node = quadruple_item_node.safe_values(
+            code=c1.code
+            + c2.code
+            + [
+                QuadrupleNode(
+                    op="if",
+                    arg_1=QuadrupleNode(
+                        op=ctx.children[1].getText(), arg_1=c1.address, arg_2=c2.address
+                    ),
+                    arg_2=QuadrupleNode(op="goto", arg_1=quadruple_item_node.true),
+                )
+            ]
+            + [QuadrupleNode(op="goto", arg_1=quadruple_item_node.false)]
+        )
+        return quadruple_item_node
+
+    # Visit a parse tree produced by YAPL2Parser#true.
+    def visitTrue(self, ctx: YAPL2Parser.TrueContext):
+        length = settings.ELEMENTAL_TYPES_SIZES["Bool"]
+        quadruple_item_node = self.quadruple_item_node(ctx=ctx)
+        quadruple_item_node = quadruple_item_node.safe_values(
+            address=Constant(
+                value=ctx.getText(),
+                type="Bool",
+                offset=self.get_constant_offset(length),
+                length=length,
+            ),
+            code=[QuadrupleNode(op="goto", arg_1=quadruple_item_node.true)]
+            if quadruple_item_node.true
+            else None,
+        )
+        return quadruple_item_node
+
+    # Visit a parse tree produced by YAPL2Parser#let.
+    def visitLet(self, ctx: YAPL2Parser.LetContext):
+        code = []
+        self.symbol_table.push_scope(uuid4())
+        children = self.visitChildren(ctx)
+        self.symbol_table.pop_scope()
+        if type(children) is QuadrupleItemNode:
+            c: QuadrupleItemNode = children
+            code += c.code
+            returnAddress = c.address
+        else:
+            for i in range(len(children)):
+                c: QuadrupleItemNode = children[i]
+                code += c.code
+            returnAddress = children[-1].address
+        quadruple_item_node = self.quadruple_item_node(
+            ctx=ctx, address=returnAddress, code=code
+        )
+        return quadruple_item_node
+
+    # Visit a parse tree produced by YAPL2Parser#id.
+    def visitId(self, ctx: YAPL2Parser.IdContext):
+        name = str(ctx.ID())
+        symbol = self.symbol_table.get_symbol(name)
+        quadruple_item_node = self.quadruple_item_node(
+            ctx=ctx,
+            address=Name(
+                class_name=self.symbol_table.get_active_class(),
+                type=symbol.type,
+                name=symbol.name,
+                offset=symbol.offset,
+                length=symbol.length,
+            ),
+        )
+        return quadruple_item_node
+
+    # Visit a parse tree produced by YAPL2Parser#if.
+    def visitIf(self, ctx: YAPL2Parser.IfContext):
+        next = self.generate_new_label()
+        label1 = self.generate_new_label()
+        label2 = self.generate_new_label()
+        ctx.expr(0).obj = QuadrupleItemNode(true=label1, false=label2)
+        ctx.expr(1).obj = QuadrupleItemNode(next=next)
+        ctx.expr(2).obj = QuadrupleItemNode(next=next)
+        result = self.visitChildren(ctx)
+        c1: QuadrupleItemNode = result[0]
+        c2: QuadrupleItemNode = result[1]
+        c3: QuadrupleItemNode = result[2]
+        quadruple_item_node = self.quadruple_item_node(
+            ctx=ctx,
+            next=next,
+            address=c2.address,
+            code=c1.code
+            + [c1.true]
+            + c2.code
+            + [QuadrupleNode(op="goto", arg_1=next)]
+            + [c1.false]
+            + c3.code
+            + [next],
+        )
+        return quadruple_item_node
+
+    # Visit a parse tree produced by YAPL2Parser#call.
+    def visitCall(self, ctx: YAPL2Parser.CallContext):
+        code = []
+        method_name = str(ctx.ID())
+        method = self.types_table.get_method(
+            self.symbol_table.get_active_class(), method_name
+        )
+        offset, count = self.get_temp_offset_and_count(method.length)
+        children = self.visitChildren(ctx)
+        if children:
+            if type(children) is QuadrupleItemNode:
+                symbol = method.get_param_by_pos(0)
+                c: QuadrupleItemNode = children
+                code += c.code + [
+                    QuadrupleNode(
+                        op="=",
+                        res=Name(
+                            class_name=self.symbol_table.get_active_class(),
+                            type=symbol.type,
+                            name=symbol.name,
+                            offset=symbol.offset,
+                            length=symbol.length,
+                        ),
+                        arg_1=c.address,
+                    )
+                ]
+            else:
+                for i in range(len(children)):
+                    symbol = method.get_param_by_pos(i)
+                    c: QuadrupleItemNode = children[i]
+                    code += c.code + [
+                        QuadrupleNode(
+                            op="=",
+                            res=Name(
+                                class_name=self.symbol_table.get_active_class(),
+                                type=symbol.type,
+                                name=symbol.name,
+                                offset=symbol.offset,
+                                length=symbol.length,
+                            ),
+                            arg_1=c.address,
+                        )
+                    ]
+        address = Temp(
+            index=count, type=method.type, offset=offset, length=method.length
+        )
+        quadruple_item_node = self.quadruple_item_node(
+            ctx=ctx,
+            address=address,
+            code=code
+            + [
+                QuadrupleNode(
+                    op="call",
+                    arg_1=Function(
+                        class_name=self.symbol_table.get_active_class(),
+                        name=method_name,
+                    ),
+                    res=address,
+                )
+            ],
+        )
+        return quadruple_item_node
+
+    # Visit a parse tree produced by YAPL2Parser#parenthesis.
+    def visitParenthesis(self, ctx: YAPL2Parser.ParenthesisContext):
+        ctx.expr().obj = self.quadruple_item_node(ctx=ctx)
+        return self.visitChildren(ctx)
+
+    # Visit a parse tree produced by YAPL2Parser#let_declaration.
+    def visitLet_declaration(self, ctx: YAPL2Parser.Let_declarationContext):
+        name = str(ctx.ID())
+        type = str(ctx.TYPE())
+        self.symbol_table.add_symbol(name, type)
+        c1: QuadrupleItemNode = self.visitChildren(ctx)
+        if c1:
+            symbol = self.symbol_table.get_symbol(name)
+            quadruple_item_node = self.quadruple_item_node(
+                ctx=ctx,
+                code=c1.code
+                + [
+                    QuadrupleNode(
+                        op="=",
+                        res=Name(
+                            class_name=self.symbol_table.get_active_class(),
+                            type=symbol.type,
+                            name=symbol.name,
+                            offset=symbol.offset,
+                            length=symbol.length,
+                        ),
+                        arg_1=c1.address,
+                    )
+                ],
+            )
+            return quadruple_item_node
+
+    def get_constant_offset(self, length):
+        offset = self.constant_offset
+        self.constant_offset += length
+        return offset
+
+    def generate_new_label(self):
+        count = self.label_qty
+        self.label_qty += 1
+        return Label(index=count)
+
+    def get_temp_offset_and_count(self, length):
+        offset = self.temp_offset
+        count = self.temp_qty
+        self.temp_offset += length
+        self.temp_qty += 1
+        return offset, count
+
+    def quadruple_item_node(
+        self, ctx, address=None, code=None, next=None, true=None, false=None
+    ):
+        if hasattr(ctx, "obj"):
+            obj: QuadrupleItemNode = ctx.obj
+            return obj.safe_values(
+                address=address, code=code, next=next, true=true, false=false
+            )
+        else:
+            return QuadrupleItemNode(
+                address=address, code=code, next=next, true=true, false=false
+            )

@@ -1,4 +1,8 @@
-import time
+import uuid
+
+PUSH_ALL_REGISTERS = "\n\n --- *PUSH_ALL_REGISTERS_here* --- \n\n"
+POP_ALL_REGISTERS = "\n\n --- *POP_ALL_REGISTERS_here* --- \n\n"
+
 
 class Node:
     pass
@@ -13,10 +17,10 @@ class ProgramNode(Node):
         self.inheritance = inheritance
 
     def inheritance_table_code(self):
-        result = "inheritance_table: .word 0,"
+        result = "inheritance_table: .word 0"
         for parents_class_tag in self.inheritance[1:]:
             result += ", " + str(parents_class_tag)
-        result += '\n'
+        result += "\n"
         return result
 
     @property
@@ -24,6 +28,9 @@ class ProgramNode(Node):
         for t in self.dot_types:
             if t.name == "Main":
                 return t.object_length
+
+    def to_mips(self):
+        pass
 
 
 class TypeNode(Node):
@@ -48,17 +55,44 @@ class TypeNode(Node):
         method_strings = []
         for i in range(len(self.methods)):
             method_strings.append(self.methods[i].name)
-            """ if i == 0:
-                result += self.methods[i].name + "_ptr"
-                result += ", " + str(self.methods[i].function_name)
-            else:
-                result += ", " + self.methods[i].name + "_ptr"
-                result += ", " + str(self.methods[i].function_name) """
-        result += '\n'
+        result += "\n"
         for i in range(len(method_strings)):
-            if (method_strings[i] + "_ptr: .asciiz " + '"' + method_strings[i] + '"\n') not in previous:
-                result += "-> " + method_strings[i] + "_ptr: .asciiz " + '"' + method_strings[i] + '"\n'
+            if (
+                method_strings[i] + "_ptr: .asciiz " + '"' + method_strings[i] + '"\n'
+            ) not in previous:
+                result += (
+                    "-> "
+                    + method_strings[i]
+                    + "_ptr: .asciiz "
+                    + '"'
+                    + method_strings[i]
+                    + '"\n'
+                )
         return result
+
+    def class_dispatch_table_code(self, previous):
+        # result = self.name + " Dispatch Table: .word "
+        result = self.name + "_dispatch_table: "
+        method_strings = []
+        for i in range(len(self.methods)):
+            method_strings.append(self.methods[i].name)
+        result += "\n"
+        for i in range(len(method_strings)):
+            if (
+                method_strings[i] + "_ptr: .asciiz " + '"' + method_strings[i] + '"\n'
+            ) not in previous:
+                result += (
+                    ""
+                    + method_strings[i]
+                    + "_ptr: .asciiz "
+                    + '"'
+                    + method_strings[i]
+                    + '"\n'
+                )
+        return result
+
+    def to_mips(self, previous):
+        pass
 
     def __repr__(self):
         return "type " + self.name + ":" + str(self.class_tag)
@@ -70,12 +104,22 @@ class DataNode(Node):
         self.vname = vname
         self.value = value
 
+    def to_mips(self):
+        pass
+
     def __repr__(self):
-        return 'Data: ' + self.vname + ' = ' + self.value
+        return "Data: " + self.vname + " = " + self.value
 
 
 class FunctionNode(Node):
-    def __init__(self, fname: str, findex: int, params: list, local_vars: list, instructions: list):
+    def __init__(
+        self,
+        fname: str,
+        findex: int,
+        params: list,
+        local_vars: list,
+        instructions: list,
+    ):
         super(FunctionNode, self).__init__()
         self.fname = fname
         self.findex = findex
@@ -85,8 +129,11 @@ class FunctionNode(Node):
 
     @staticmethod
     def local_index(local_name):
-        return int(local_name.split('_')[-1])
-    
+        return int(local_name.split("_")[-1])
+
+    def to_mips(self):
+        pass
+
     def __repr__(self):
         return self.fname + "(" + str(self.params) + ")"
 
@@ -98,11 +145,17 @@ class LocalNode(Node):
         self.local_index = local_index
         self.value = value
 
+    def to_mips(self):
+        pass
+
 
 class InstructionNode(Node):
     def __init__(self, name: str):
         super(InstructionNode, self).__init__()
         self.name = name
+
+    def to_mips(self):
+        pass
 
 
 class ValueNode(InstructionNode):
@@ -111,15 +164,24 @@ class ValueNode(InstructionNode):
         self.value = value
         self.number = number
 
+    def to_mips(self):
+        pass
+
     @property
     def local_value_index(self):
-        return int(self.value.split('_')[-1])
+        return int(self.value.split("_")[-1])
 
 
 class IntegerNode(InstructionNode):
     def __init__(self, value):
         super(IntegerNode, self).__init__("integer")
         self.value = value
+
+    def to_mips(self):
+        pass
+
+
+# Assign Node
 
 
 class AssignNode(InstructionNode):
@@ -131,15 +193,21 @@ class AssignNode(InstructionNode):
 
     @property
     def local_dest_index(self):
-        return int(self.dest.split('_')[-1])
+        return int(self.dest.split("_")[-1])
 
     @property
     def local_source_index(self):
-        return int(self.source.split('_')[-1])
+        return int(self.source.split("_")[-1])
 
     @property
     def local_value_index(self):
-        return int(self.value.split('_')[-1])
+        return int(self.value.split("_")[-1])
+
+    def to_mips(self):
+        pass
+
+
+# Compare Nodes (CMP)
 
 
 class EqualNode(InstructionNode):
@@ -150,11 +218,14 @@ class EqualNode(InstructionNode):
 
     @property
     def value_index(self):
-        return int(self.value.split('_')[-1])
+        return int(self.value.split("_")[-1])
 
     @property
     def number_index(self):
-        return int(self.number.split('_')[-1])
+        return int(self.number.split("_")[-1])
+
+    def to_mips(self):
+        pass
 
 
 class LessNode(InstructionNode):
@@ -165,11 +236,14 @@ class LessNode(InstructionNode):
 
     @property
     def value_index(self):
-        return int(self.value.split('_')[-1])
+        return int(self.value.split("_")[-1])
 
     @property
     def number_index(self):
-        return int(self.number.split('_')[-1])
+        return int(self.number.split("_")[-1])
+
+    def to_mips(self):
+        pass
 
 
 class LessEqualNode(InstructionNode):
@@ -180,11 +254,14 @@ class LessEqualNode(InstructionNode):
 
     @property
     def value_index(self):
-        return int(self.value.split('_')[-1])
+        return int(self.value.split("_")[-1])
 
     @property
     def number_index(self):
-        return int(self.number.split('_')[-1])
+        return int(self.number.split("_")[-1])
+
+    def to_mips(self):
+        pass
 
 
 class ParamNode(InstructionNode):
@@ -194,7 +271,10 @@ class ParamNode(InstructionNode):
 
     @property
     def local_index(self):
-        return int(self.name.split('_')[-1])
+        return int(self.name.split("_")[-1])
+
+    def to_mips(self):
+        pass
 
 
 class ArithmeticNode(InstructionNode):
@@ -212,15 +292,18 @@ class PlusNode(ArithmeticNode):
 
     @property
     def local_left_index(self):
-        return int(self.left.split('_')[-1])
+        return int(self.left.split("_")[-1])
 
     @property
     def local_right_index(self):
-        return int(self.right.split('_')[-1])
+        return int(self.right.split("_")[-1])
 
     @property
     def local_value_index(self):
-        return int(self.value.split('_')[-1])
+        return int(self.value.split("_")[-1])
+
+    def to_mips(self):
+        pass
 
 
 class MinusNode(ArithmeticNode):
@@ -230,15 +313,18 @@ class MinusNode(ArithmeticNode):
 
     @property
     def local_left_index(self):
-        return int(self.left.split('_')[-1])
+        return int(self.left.split("_")[-1])
 
     @property
     def local_right_index(self):
-        return int(self.right.split('_')[-1])
+        return int(self.right.split("_")[-1])
 
     @property
     def local_value_index(self):
-        return int(self.value.split('_')[-1])
+        return int(self.value.split("_")[-1])
+
+    def to_mips(self):
+        pass
 
 
 class StarNode(ArithmeticNode):
@@ -248,15 +334,18 @@ class StarNode(ArithmeticNode):
 
     @property
     def local_left_index(self):
-        return int(self.left.split('_')[-1])
+        return int(self.left.split("_")[-1])
 
     @property
     def local_right_index(self):
-        return int(self.right.split('_')[-1])
+        return int(self.right.split("_")[-1])
 
     @property
     def local_value_index(self):
-        return int(self.value.split('_')[-1])
+        return int(self.value.split("_")[-1])
+
+    def to_mips(self):
+        pass
 
 
 class DivNode(ArithmeticNode):
@@ -266,15 +355,18 @@ class DivNode(ArithmeticNode):
 
     @property
     def local_left_index(self):
-        return int(self.left.split('_')[-1])
+        return int(self.left.split("_")[-1])
 
     @property
     def local_right_index(self):
-        return int(self.right.split('_')[-1])
+        return int(self.right.split("_")[-1])
 
     @property
     def local_value_index(self):
-        return int(self.value.split('_')[-1])
+        return int(self.value.split("_")[-1])
+
+    def to_mips(self):
+        pass
 
 
 class AttributeNode(Node):
@@ -282,6 +374,9 @@ class AttributeNode(Node):
         super(AttributeNode, self).__init__()
         self.name = name
         self.attr_index = attr_index
+
+    def to_mips(self) -> str:
+        pass
 
     def __repr__(self):
         return "attribute " + self.name + ":" + str(self.attr_index)
@@ -293,6 +388,9 @@ class MethodNode(Node):
         self.name = name
         self.function_name = function_name
         self.function_index = function_index
+
+    def to_mips(self) -> str:
+        pass
 
     def __repr__(self):
         return "method " + self.name + ": " + str(self.function_index)
@@ -308,11 +406,14 @@ class GetAttribNode(InstructionNode):
 
     @property
     def instance_index(self):
-        return int(self.instance_name.split('_')[-1])
+        return int(self.instance_name.split("_")[-1])
 
     @property
     def value_index(self):
-        return int(self.value.split('_')[-1])
+        return int(self.value.split("_")[-1])
+
+    def to_mips(self):
+        pass
 
 
 class SetAttribNode(InstructionNode):
@@ -325,11 +426,14 @@ class SetAttribNode(InstructionNode):
 
     @property
     def instance_index(self):
-        return int(self.instance_name.split('_')[-1])
+        return int(self.instance_name.split("_")[-1])
 
     @property
     def value_index(self):
-        return int(self.value.split('_')[-1])
+        return int(self.value.split("_")[-1])
+
+    def to_mips(self):
+        pass
 
 
 class GetIndexNode(InstructionNode):
@@ -355,16 +459,25 @@ class IsVoidNode(InstructionNode):
 
     @property
     def value_index(self):
-        return int(self.value.split('_')[-1])
+        return int(self.value.split("_")[-1])
 
     @property
     def instance_index(self):
-        return int(self.instance.split('_')[-1])
+        return int(self.instance.split("_")[-1])
+
+    def to_mips(self):
+        pass
 
 
 class AllocateNode(InstructionNode):
-    def __init__(self, allocate_size: int, class_tag: str, object_size: str, dispatch_ptr: str,
-                 value: str):
+    def __init__(
+        self,
+        allocate_size: int,
+        class_tag: str,
+        object_size: str,
+        dispatch_ptr: str,
+        value: str,
+    ):
         super(AllocateNode, self).__init__("allocate")
         self.allocate_size = allocate_size * 4
         self.class_tag = class_tag
@@ -374,7 +487,10 @@ class AllocateNode(InstructionNode):
 
     @property
     def value_index(self):
-        return int(self.value.split('_')[-1])
+        return int(self.value.split("_")[-1])
+
+    def to_mips(self):
+        pass
 
 
 class ArrayNode(InstructionNode):
@@ -391,11 +507,14 @@ class TypeOfNode(InstructionNode):
 
     @property
     def instance_index(self):
-        return int(self.instance_name.split('_')[-1])
+        return int(self.instance_name.split("_")[-1])
 
     @property
     def value_index(self):
-        return int(self.value.split('_')[-1])
+        return int(self.value.split("_")[-1])
+
+    def to_mips(self):
+        pass
 
 
 class LabelNode(InstructionNode):
@@ -403,12 +522,17 @@ class LabelNode(InstructionNode):
         super(LabelNode, self).__init__("label")
         self.label_name = label_name
 
+    def to_mips(self):
+        pass
 
 
 class GotoNode(InstructionNode):
     def __init__(self, label_to_jump):
         super(GotoNode, self).__init__("goto")
         self.label_to_jump = label_to_jump
+
+    def to_mips(self):
+        pass
 
 
 class GotoIfNode(InstructionNode):
@@ -419,7 +543,10 @@ class GotoIfNode(InstructionNode):
 
     @property
     def predicate_value(self):
-        return int(self.predicate_name.split('_')[-1])
+        return int(self.predicate_name.split("_")[-1])
+
+    def to_mips(self):
+        pass
 
 
 class StackGotoNode(InstructionNode):
@@ -427,15 +554,24 @@ class StackGotoNode(InstructionNode):
         super(StackGotoNode, self).__init__("goto")
         self.local_to_jump = local_to_jump
 
+    def to_mips(self):
+        pass
+
 
 class PushaNode(InstructionNode):
     def __init__(self):
-        super(PushaNode, self).__init__("pusha")
+        super(PushaNode, self).__init__("push_all_registers")
+
+    def to_mips(self):
+        pass
 
 
 class PopaNode(InstructionNode):
     def __init__(self):
-        super(PopaNode, self).__init__("popa")
+        super(PopaNode, self).__init__("pop_all_registers")
+
+    def to_mips(self):
+        pass
 
 
 class StaticCallNode(InstructionNode):
@@ -448,11 +584,16 @@ class StaticCallNode(InstructionNode):
 
     @property
     def value_index(self):
-        return int(self.value.split('_')[-1])
+        return int(self.value.split("_")[-1])
+
+    def to_mips(self):
+        pass
 
 
 class DynamicCallNode(InstructionNode):
-    def __init__(self, func_name: str, instance: str = "", value: str = "", count: int = 0):
+    def __init__(
+        self, func_name: str, instance: str = "", value: str = "", count: int = 0
+    ):
         super(DynamicCallNode, self).__init__("dynamic_call")
         self.func_name = func_name
         self.instance = instance
@@ -461,15 +602,18 @@ class DynamicCallNode(InstructionNode):
 
     @property
     def instance_index(self):
-        return int(self.instance.split('_')[-1])
+        return int(self.instance.split("_")[-1])
 
     @property
     def value_index(self):
-        return int(self.value.split('_')[-1])
+        return int(self.value.split("_")[-1])
 
     @property
     def func_name_index(self):
-        return int(self.func_name.split('_')[-1])
+        return int(self.func_name.split("_")[-1])
+
+    def to_mips(self):
+        pass
 
 
 class ArgNode(InstructionNode):
@@ -480,7 +624,10 @@ class ArgNode(InstructionNode):
 
     @property
     def arg_name_index(self):
-        return int(self.arg_name.split('_')[-1])
+        return int(self.arg_name.split("_")[-1])
+
+    def to_mips(self):
+        pass
 
 
 class CopyNode(InstructionNode):
@@ -491,15 +638,18 @@ class CopyNode(InstructionNode):
 
     @property
     def instance_index(self):
-        return int(self.instance.split('_')[-1])
+        return int(self.instance.split("_")[-1])
 
     @property
     def value_index(self):
-        return int(self.value.split('_')[-1])
+        return int(self.value.split("_")[-1])
 
     @property
     def node_id(self):
-        return str(time.time()).split('.')[0] + str(time.time()).split('.')[1]
+        return str(uuid.uuid4().hex)
+
+    def to_mips(self):
+        pass
 
 
 class ReturnNode(InstructionNode):
@@ -509,7 +659,10 @@ class ReturnNode(InstructionNode):
 
     @property
     def value_index(self):
-        return int(self.value.split('_')[-1])
+        return int(self.value.split("_")[-1])
+
+    def to_mips(self):
+        pass
 
 
 class LoadNode(InstructionNode):
@@ -520,7 +673,10 @@ class LoadNode(InstructionNode):
 
     @property
     def value_index(self):
-        return int(self.value.split('_')[-1])
+        return int(self.value.split("_")[-1])
+
+    def to_mips(self):
+        pass
 
 
 class StringCmp(InstructionNode):
@@ -532,15 +688,18 @@ class StringCmp(InstructionNode):
 
     @property
     def value_index(self):
-        return int(self.value.split('_')[-1])
+        return int(self.value.split("_")[-1])
 
     @property
     def str1_index(self):
-        return int(self.str1.split('_')[-1])
+        return int(self.str1.split("_")[-1])
 
     @property
     def str2_index(self):
-        return int(self.str2.split('_')[-1])
+        return int(self.str2.split("_")[-1])
+
+    def to_mips(self):
+        pass
 
 
 class LengthNode(InstructionNode):
@@ -551,15 +710,18 @@ class LengthNode(InstructionNode):
 
     @property
     def instance_name_index(self):
-        return int(self.instance_name.split('_')[-1])
+        return int(self.instance_name.split("_")[-1])
 
     @property
     def value_index(self):
-        return int(self.value.split('_')[-1])
+        return int(self.value.split("_")[-1])
 
     @property
     def node_id(self):
-        return str(time.time()).split('.')[0] + str(time.time()).split('.')[1]
+        return str(uuid.uuid4().hex)
+
+    def to_mips(self):
+        pass
 
 
 class ConcatNode(InstructionNode):
@@ -573,27 +735,30 @@ class ConcatNode(InstructionNode):
 
     @property
     def str1_index(self):
-        return int(self.str1.split('_')[-1])
+        return int(self.str1.split("_")[-1])
 
     @property
     def str2_index(self):
-        return int(self.str2.split('_')[-1])
+        return int(self.str2.split("_")[-1])
 
     @property
     def value_index(self):
-        return int(self.value.split('_')[-1])
+        return int(self.value.split("_")[-1])
 
     @property
     def len1_index(self):
-        return int(self.len1.split('_')[-1])
+        return int(self.len1.split("_")[-1])
 
     @property
     def len2_index(self):
-        return int(self.len2.split('_')[-1])
+        return int(self.len2.split("_")[-1])
 
     @property
     def node_id(self):
-        return str(time.time()).split('.')[0] + str(time.time()).split('.')[1]
+        return str(uuid.uuid4().hex)
+
+    def to_mips(self):
+        pass
 
 
 class SubstringNode(InstructionNode):
@@ -606,23 +771,26 @@ class SubstringNode(InstructionNode):
 
     @property
     def text_index(self):
-        return int(self.text.split('_')[-1])
+        return int(self.text.split("_")[-1])
 
     @property
     def index_index(self):
-        return int(self.index.split('_')[-1])
+        return int(self.index.split("_")[-1])
 
     @property
     def length_index(self):
-        return int(self.length.split('_')[-1])
+        return int(self.length.split("_")[-1])
 
     @property
     def value_index(self):
-        return int(self.value.split('_')[-1])
+        return int(self.value.split("_")[-1])
 
     @property
     def node_id(self):
-        return str(time.time()).split('.')[0] + str(time.time()).split('.')[1]
+        return str(uuid.uuid4().hex)
+
+    def to_mips(self):
+        pass
 
 
 class ParentOfNode(InstructionNode):
@@ -633,7 +801,10 @@ class ParentOfNode(InstructionNode):
 
     @property
     def value_index(self):
-        return int(self.value.split('_')[-1])
+        return int(self.value.split("_")[-1])
+
+    def to_mips(self):
+        pass
 
 
 class ToStrNode(InstructionNode):
@@ -650,7 +821,10 @@ class ReadIntegerNode(InstructionNode):
 
     @property
     def value_index(self):
-        return int(self.value.split('_')[-1])
+        return int(self.value.split("_")[-1])
+
+    def to_mips(self):
+        pass
 
 
 class ReadStringNode(InstructionNode):
@@ -660,7 +834,10 @@ class ReadStringNode(InstructionNode):
 
     @property
     def value_index(self):
-        return int(self.value.split('_')[-1])
+        return int(self.value.split("_")[-1])
+
+    def to_mips(self):
+        pass
 
 
 class PrintIntegerNode(InstructionNode):
@@ -670,7 +847,10 @@ class PrintIntegerNode(InstructionNode):
 
     @property
     def int_addr_index(self):
-        return int(self.int_addr.split('_')[-1])
+        return int(self.int_addr.split("_")[-1])
+
+    def to_mips(self):
+        pass
 
 
 class PrintStringNode(InstructionNode):
@@ -679,7 +859,10 @@ class PrintStringNode(InstructionNode):
         self.str_addr = str_addr
 
     def get_str_index(self):
-        return int(self.str_addr.split('_')[-1])
+        return int(self.str_addr.split("_")[-1])
+
+    def to_mips(self):
+        pass
 
 
 class StringCopyNode(InstructionNode):
@@ -696,7 +879,10 @@ class BooleanNegation(InstructionNode):
 
     @property
     def expr_index(self):
-        return int(self.expr.split('_')[-1])
+        return int(self.expr.split("_")[-1])
+
+    def to_mips(self):
+        pass
 
 
 class AbortNode(InstructionNode):
@@ -704,3 +890,6 @@ class AbortNode(InstructionNode):
         super(AbortNode, self).__init__("abort")
         self.error_message = error_message
         # self.value = value
+
+    def to_mips(self):
+        pass

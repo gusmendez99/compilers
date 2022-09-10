@@ -26,7 +26,7 @@ class Fibonacci {
   };
 
 class Main inherits IO {
-    n: Int <- 10;
+    n: Int <- 7;
   	facto: Factorial;
   	fibo: Fibonacci;
   

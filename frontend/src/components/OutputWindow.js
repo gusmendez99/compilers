@@ -1,14 +1,13 @@
 import React from "react";
 
 const OutputWindow = ({ outputDetails }) => {
-  const getOutput = () => outputDetails
-  ? (
-    <pre className="px-2 py-1 font-normal text-xs text-red-500">
-      {outputDetails}
-    </pre>
-  ) : (
+  const getOutput = () => (
     <pre className="px-2 py-1 font-normal text-xs text-green-500">
-      {"OK"}
+      {
+        outputDetails
+        ? outputDetails
+        : ""
+      }
     </pre>
   );
   
