@@ -1,6 +1,7 @@
-# Compilers Lab 2 - 3AC (Three Address Code)
+# Compilers Project 2 - Complete 3AC (Three Address Code)
 
-Data structure to be used for the Intermediate Code...
+Second project implementing Intermediate Code with 3AC. Working with all test files.
+Selected Data Structure was `Quadruple` approach...
 
 ## Definition
 Intermediate code with three address code will be demonstrated. From this it
@@ -48,25 +49,19 @@ An intermediate language should look like this:
 
 **Output (input: Factorial YAPL test)**
 
-![3ac](https://github.com/gusmendez99/compilers/blob/main/images/3ac.png?raw=true)
+![3ac](https://github.com/gusmendez99/compilers/blob/main/images/3ac_fibonacci.png?raw=true)
 
 ```
  -----> TYPES SUMMARY <-----
 
-Val:  Object 0
-Val:  IO 8
-Val:  Int 4
-Val:  String 40
-Val:  Bool 1
-Val:  A 36
-Val:  B 40
-Val:  C 48
-Val:  D 44
-Val:  E 48
-Val:  Main 125
-
- -----> SYMBOLS TABLE <-----
- [Symbol(name='var', type='Int', scope=<yapl.models.types.Class object at 0x106c81ee0>, length=4, offset=0), Symbol(name='var', type='Int', scope=<yapl.models.types.Class object at 0x106c81ee0>, length=4, offset=0), Symbol(name='var', type='Int', scope=<yapl.models.types.Class object at 0x106c81ee0>, length=4, offset=0), Symbol(name='var', type='Int', scope=<yapl.models.types.Class object at 0x106c81ee0>, length=4, offset=0)]
+Type: Object [0] 
+Type: IO [8] 
+Type: Int [4] 
+Type: String [40] 
+Type: Bool [1] 
+Type: Factorial [8] 
+Type: Fibonacci [4] 
+Type: Main [24] 
 
 ```
 
