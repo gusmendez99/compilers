@@ -30,7 +30,10 @@ class ProgramNode(Node):
                 return t.object_length
 
     def to_mips(self):
-        pass
+        ans = ''
+        for function in self.functions:
+            ans += function.to_mips()
+        return ans
 
 
 class TypeNode(Node):
@@ -132,7 +135,13 @@ class FunctionNode(Node):
         return int(local_name.split("_")[-1])
 
     def to_mips(self):
-        pass
+        ans = ''
+        ans += self.fname + ':\n'
+        for instruction in self.instructions:
+            local_instruction = instruction.to_mips()
+            ans += local_instruction if local_instruction else ''
+        ans += '\n'
+        return ans
 
     def __repr__(self):
         return self.fname + "(" + str(self.params) + ")"
@@ -303,7 +312,15 @@ class PlusNode(ArithmeticNode):
         return int(self.value.split("_")[-1])
 
     def to_mips(self):
-        pass
+        local_left_increment = self.local_left_index * 4 + 12
+        local_right_increment = self.local_right_index * 4 + 12
+        local_value_increment = self.local_value_index * 4 + 12
+        ans = ''
+        ans += 'lw $a0, ' + str(-local_left_increment) + '($fp)\n'
+        ans += 'lw $a1, ' + str(-local_right_increment) + '($fp)\n'
+        ans += 'add $a0, $a0, $a1\n'
+        ans += 'sw $a0, ' + str(-local_value_increment) + '($fp)\n'
+        return ans
 
 
 class MinusNode(ArithmeticNode):
@@ -324,7 +341,15 @@ class MinusNode(ArithmeticNode):
         return int(self.value.split("_")[-1])
 
     def to_mips(self):
-        pass
+        local_left_increment = self.local_left_index * 4 + 12
+        local_right_increment = self.local_right_index * 4 + 12
+        local_value_increment = self.local_value_index * 4 + 12
+        ans = ''
+        ans += 'lw $a0, ' + str(-local_left_increment) + '($fp)\n'
+        ans += 'lw $a1, ' + str(-local_right_increment) + '($fp)\n'
+        ans += 'sub $a0, $a0, $a1\n'
+        ans += 'sw $a0, ' + str(-local_value_increment) + '($fp)\n'
+        return ans
 
 
 class StarNode(ArithmeticNode):
@@ -345,7 +370,16 @@ class StarNode(ArithmeticNode):
         return int(self.value.split("_")[-1])
 
     def to_mips(self):
-        pass
+        local_left_increment = self.local_left_index * 4 + 12
+        local_right_increment = self.local_right_index * 4 + 12
+        local_value_increment = self.local_value_index * 4 + 12
+        ans = ''
+        ans += 'lw $a0, ' + str(-local_left_increment) + '($fp)\n'
+        ans += 'lw $a1, ' + str(-local_right_increment) + '($fp)\n'
+        ans += 'multu $a0, $a1\n'
+        ans += 'mflo $a0\n'
+        ans += 'sw $a0, ' + str(-local_value_increment) + '($fp)\n'
+        return ans
 
 
 class DivNode(ArithmeticNode):
@@ -366,7 +400,16 @@ class DivNode(ArithmeticNode):
         return int(self.value.split("_")[-1])
 
     def to_mips(self):
-        pass
+        local_left_increment = self.local_left_index * 4 + 12
+        local_right_increment = self.local_right_index * 4 + 12
+        local_value_increment = self.local_value_index * 4 + 12
+        ans = ''
+        ans += 'lw $a0, ' + str(-local_left_increment) + '($fp)\n'
+        ans += 'lw $a1, ' + str(-local_right_increment) + '($fp)\n'
+        ans += 'div $a0, $a1\n'
+        ans += 'mflo $a0\n'
+        ans += 'sw $a0, ' + str(-local_value_increment) + '($fp)\n'
+        return ans
 
 
 class AttributeNode(Node):

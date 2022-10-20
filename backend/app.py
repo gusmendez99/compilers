@@ -92,10 +92,8 @@ def process_input_code(code = ""):
     print("TABLE: ", symbols_table)
     print("ERRORS?: ", errors)
 
-    types_response_str = ''
-
     for value in types_table.class_list.values():
-        types_response_str += f'Type: {value.id} [{value.length}] \n'
+        print('Val: ', value.id, value.length)
 
     validate_main = (MAIN_TYPE in active_context_type.types.keys() and active_context_type.types[MAIN_TYPE].name == MAIN_TYPE and MAIN_FUNCTION in active_context_type.types[MAIN_TYPE].methods.keys())
     
@@ -122,7 +120,7 @@ def process_input_code(code = ""):
 
     
     # Types list
-    intermediate_code_info = types_response_str
+    intermediate_code_info = intermediate_code_result.to_mips()
     return errors, intermediate_code_info, tac_final_result
 
 
