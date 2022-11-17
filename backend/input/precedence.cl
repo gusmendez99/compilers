@@ -5,6 +5,7 @@ class Main inherits IO {
     main() : SELF_TYPE {
 	{
 	    a <- a + b * c;
+        out_int(a);
         self;
 	}
     };

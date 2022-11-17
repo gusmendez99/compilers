@@ -87,8 +87,8 @@ const Landing = () => {
             const compileCodeResult = response.data.result;
             
             // setOutputDetails("");
-            setOutputDetails(compileInfo);
-            setCodeResult(compileCodeResult);
+            setOutputDetails(compileCodeResult);
+            setCodeResult(compileInfo);
           } catch (err) {
             console.log(err)
           }
@@ -185,7 +185,7 @@ const Landing = () => {
           />
           <br/>
           <h1 className="w-full font-bold text-xl bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-700 mb-2 px-2">
-            3 Address Code (TAC)
+            MIPS Output
           </h1>
           <br/>
           <CodeEditorWindow

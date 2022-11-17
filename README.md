@@ -1,19 +1,18 @@
-# Compilers Lab 3 - MIPS Code & GCD with Mips
+# Compilers Project 3 - Complete Compiler
 
-Implementation for arith. operators over a YAPL test input file.
-In addition, we must practice MIPS programming, doing a POC about recursive calls, like the GCD algorithm.
+Implementation for YAPL Compiler, from Lexical Analyzer to Code Generation (MIPS).
 
 ## Output
 
 
+**YAPL to MIPS (input: Ackermann YAPL test, "recur.cl")**
 
-**Initial MIPS translations (input: Calculator YAPL test, "micks.cl")**
+The Ackermann function is the simplest example of a well-defined total function which is computable but not primitive recursive, providing a counterexample to the belief in the early 1900s that every computable function was also primitive recursive. In this final test, we check the result for A(m=3, n=2) = 29 (see MARS MIPS output).
 
-![mips_arith](https://github.com/gusmendez99/compilers/blob/main/images/mips_arith.png?raw=true)
+![ackermann](https://github.com/gusmendez99/compilers/blob/main/images/ackermann.png?raw=true)
 
-**GCD with MIPS MARS simulator**
+![mips_ackermann](https://github.com/gusmendez99/compilers/blob/main/images/mips_ackermann.png?raw=true)
 
-![mips_arith](https://github.com/gusmendez99/compilers/blob/main/images/mars_gcd.png?raw=true)
 
 ## :star2: Author
 

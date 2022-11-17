@@ -52,6 +52,8 @@ class Main inherits IO {
 
     main() : SELF_TYPE {
         {
+            a <- new Results;
+            calc <- new Calculator;
             a.set_res(calc.mul(5,4));
             out_int(a.get_ress());
             a.set_res(calc@SumSub.sum(5,6));

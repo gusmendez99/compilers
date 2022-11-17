@@ -1,7 +1,61 @@
-import uuid
+from uuid import uuid4
 
-PUSH_ALL_REGISTERS = "\n\n --- *PUSH_ALL_REGISTERS_here* --- \n\n"
-POP_ALL_REGISTERS = "\n\n --- *POP_ALL_REGISTERS_here* --- \n\n"
+def uuidv4():
+    return uuid4().hex
+
+DEFAULT_DATA_HEADERS = """.data
+empty_string: .asciiz ""
+null_reference: .asciiz "ERROR: null ref exception"
+zero_division: .asciiz "ERROR: division by zero not allowed"
+main_prototype: .word 1, 3, Main_dispatch_table
+"""
+
+PUSH_SP_INSTRUCTION = "subu $sp, $sp, 4"
+POP_SP_INSTRUCTION = "addu $sp, $sp, 4"
+
+PUSH_ALL_REGISTERS = f"""{PUSH_SP_INSTRUCTION}
+sw $ra, ($sp)
+{PUSH_SP_INSTRUCTION}
+sw $a0, ($sp)
+{PUSH_SP_INSTRUCTION}
+sw $a1, ($sp)
+{PUSH_SP_INSTRUCTION}
+sw $a2, ($sp)
+{PUSH_SP_INSTRUCTION}
+sw $a3, ($sp)
+{PUSH_SP_INSTRUCTION}
+sw $t0, ($sp)
+{PUSH_SP_INSTRUCTION}
+sw $t1, ($sp)
+{PUSH_SP_INSTRUCTION}
+sw $t2, ($sp)
+{PUSH_SP_INSTRUCTION}
+sw $t3, ($sp)
+{PUSH_SP_INSTRUCTION}
+sw $t4, ($sp)
+"""
+
+POP_ALL_REGISTERS = f"""lw $t4, ($sp)
+{POP_SP_INSTRUCTION}
+lw $t3, ($sp)
+{POP_SP_INSTRUCTION}
+lw $t2, ($sp)
+{POP_SP_INSTRUCTION}
+lw $t1, ($sp)
+{POP_SP_INSTRUCTION}
+lw $t0, ($sp)
+{POP_SP_INSTRUCTION}
+lw $a3, ($sp)
+{POP_SP_INSTRUCTION}
+lw $a2, ($sp)
+{POP_SP_INSTRUCTION}
+lw $a1, ($sp)
+{POP_SP_INSTRUCTION}
+lw $a0, ($sp)
+{POP_SP_INSTRUCTION}
+lw $ra, ($sp)
+{POP_SP_INSTRUCTION}
+"""
 
 
 class Node:
@@ -30,10 +84,35 @@ class ProgramNode(Node):
                 return t.object_length
 
     def to_mips(self):
-        ans = ''
+        mips_code = DEFAULT_DATA_HEADERS
+        mips_code += self.inheritance_table_code()
+        for t in self.dot_types:
+            mips_code += t.to_mips(mips_code)
+        for data in self.dot_data:
+            mips_code += data.to_mips()
+        mips_code += '.text\n'
+        mips_code += '.globl main\n'
+        mips_code += 'main:\n'
+
+        # Static Call
+        mips_code += PUSH_ALL_REGISTERS
+        mips_code += 'jal ' + 'init_Main' + '\n'
+        mips_code += POP_ALL_REGISTERS
+
+        mips_code += PUSH_ALL_REGISTERS
+        # Push main instance
+        mips_code += f'{PUSH_SP_INSTRUCTION}\n'
+
+        mips_code += 'sw $v0, ($sp)\n'
+
+        mips_code += 'jal def_Main_main\n'
+        mips_code += 'addu, $sp, $sp, 4\n'
+        mips_code += POP_ALL_REGISTERS
+        mips_code += 'li $v0, 10\n'
+        mips_code += 'syscall\n\n'
         for function in self.functions:
-            ans += function.to_mips()
-        return ans
+            mips_code += function.to_mips()
+        return mips_code
 
 
 class TypeNode(Node):
@@ -53,49 +132,26 @@ class TypeNode(Node):
                 return f.attr_index
 
     def class_dispatch_table(self, previous):
-        # result = self.name + " Dispatch Table: .word "
-        result = self.name + " Dispatch Table: "
+        result = self.name + "_dispatch_table: .word "
         method_strings = []
         for i in range(len(self.methods)):
             method_strings.append(self.methods[i].name)
-        result += "\n"
+            if i == 0:
+                result += self.methods[i].name + "_ptr"
+                result += ", " + str(self.methods[i].function_name)
+            else:
+                result += ", " + self.methods[i].name + "_ptr"
+                result += ", " + str(self.methods[i].function_name)
+        result += '\n'
         for i in range(len(method_strings)):
-            if (
-                method_strings[i] + "_ptr: .asciiz " + '"' + method_strings[i] + '"\n'
-            ) not in previous:
-                result += (
-                    "-> "
-                    + method_strings[i]
-                    + "_ptr: .asciiz "
-                    + '"'
-                    + method_strings[i]
-                    + '"\n'
-                )
-        return result
-
-    def class_dispatch_table_code(self, previous):
-        # result = self.name + " Dispatch Table: .word "
-        result = self.name + "_dispatch_table: "
-        method_strings = []
-        for i in range(len(self.methods)):
-            method_strings.append(self.methods[i].name)
-        result += "\n"
-        for i in range(len(method_strings)):
-            if (
-                method_strings[i] + "_ptr: .asciiz " + '"' + method_strings[i] + '"\n'
-            ) not in previous:
-                result += (
-                    ""
-                    + method_strings[i]
-                    + "_ptr: .asciiz "
-                    + '"'
-                    + method_strings[i]
-                    + '"\n'
-                )
+            if (method_strings[i] + "_ptr: .asciiz " + '"' + method_strings[i] + '"\n') not in previous:
+                result += method_strings[i] + "_ptr: .asciiz " + '"' + method_strings[i] + '"\n'
         return result
 
     def to_mips(self, previous):
-        pass
+        mips_code = ''
+        mips_code += self.class_dispatch_table(previous)
+        return mips_code
 
     def __repr__(self):
         return "type " + self.name + ":" + str(self.class_tag)
@@ -108,7 +164,8 @@ class DataNode(Node):
         self.value = value
 
     def to_mips(self):
-        pass
+        mips_code = self.vname + ':' + ' ' + '.asciiz' + ' ' + self.value + '\n'
+        return mips_code
 
     def __repr__(self):
         return "Data: " + self.vname + " = " + self.value
@@ -135,13 +192,21 @@ class FunctionNode(Node):
         return int(local_name.split("_")[-1])
 
     def to_mips(self):
-        ans = ''
-        ans += self.fname + ':\n'
+        mips_code = ''
+        mips_code += '.globl ' + self.fname + '\n'
+        mips_code += self.fname + ':\n'
+        mips_code += f'{PUSH_SP_INSTRUCTION}\n'
+        mips_code += 'sw $fp, ($sp)\n'
+        mips_code += 'addu $fp, $sp, 4\n'
+        mips_code += f'{PUSH_SP_INSTRUCTION}\n'
+        mips_code += 'sw $ra, ($sp)\n'
+        for local in self.local_vars:
+            mips_code += f'{PUSH_SP_INSTRUCTION}\n'
+            mips_code += 'sw $zero, ($sp)\n'
         for instruction in self.instructions:
-            local_instruction = instruction.to_mips()
-            ans += local_instruction if local_instruction else ''
-        ans += '\n'
-        return ans
+            mips_code += instruction.to_mips()
+        mips_code += '\n'
+        return mips_code
 
     def __repr__(self):
         return self.fname + "(" + str(self.params) + ")"
@@ -174,7 +239,11 @@ class ValueNode(InstructionNode):
         self.number = number
 
     def to_mips(self):
-        pass
+        mips_code = ''
+        local_dest_increment = self.local_value_index * 4 + 12
+        mips_code += 'li $a0, ' + str(self.number) + '\n'
+        mips_code += 'sw $a0, ' + str(-local_dest_increment) + '($fp)\n'
+        return mips_code
 
     @property
     def local_value_index(self):
@@ -189,8 +258,6 @@ class IntegerNode(InstructionNode):
     def to_mips(self):
         pass
 
-
-# Assign Node
 
 
 class AssignNode(InstructionNode):
@@ -213,7 +280,14 @@ class AssignNode(InstructionNode):
         return int(self.value.split("_")[-1])
 
     def to_mips(self):
-        pass
+        mips_code = ''
+        local_dest_increment = self.local_dest_index * 4 + 12
+        local_source_increment = self.local_source_index * 4 + 12
+        local_value_increment = self.local_value_index * 4 + 12
+        mips_code += 'lw $a0, ' + str(-local_source_increment) + '($fp)\n'
+        mips_code += 'sw $a0, ' + str(-local_dest_increment) + '($fp)\n'
+        mips_code += 'sw $a0, ' + str(-local_value_increment) + '($fp)\n'
+        return mips_code
 
 
 # Compare Nodes (CMP)
@@ -234,7 +308,17 @@ class EqualNode(InstructionNode):
         return int(self.number.split("_")[-1])
 
     def to_mips(self):
-        pass
+        mips_code = ''
+        number_increment = self.number_index * 4 + 12
+        mips_code += 'lw $a1, ' + str(-number_increment) + '($fp)\n'
+        mips_code += 'li $a0, 1\n'
+        returnTrue_unique_v4 = uuidv4()
+        mips_code += 'beqz $a1, returnTrue' + returnTrue_unique_v4 + '\n'
+        mips_code += 'li $a0, 0\n'
+        mips_code += 'returnTrue' + returnTrue_unique_v4 + ':\n'
+        value_increment = self.value_index * 4 + 12
+        mips_code += 'sw $a0, ' + str(-value_increment) + '($fp)\n'
+        return mips_code
 
 
 class LessNode(InstructionNode):
@@ -252,7 +336,17 @@ class LessNode(InstructionNode):
         return int(self.number.split("_")[-1])
 
     def to_mips(self):
-        pass
+        mips_code = ''
+        number_increment = self.number_index*4 + 12
+        mips_code += 'lw $a1, ' + str(-number_increment) + '($fp)\n'
+        mips_code += 'li $a0, 1\n'
+        returnTrue_unique_v4 = uuidv4()
+        mips_code += 'bltz $a1, returnTrue' + returnTrue_unique_v4 + '\n'
+        mips_code += 'li $a0, 0\n'
+        mips_code += 'returnTrue' + returnTrue_unique_v4 + ':\n'
+        value_increment = self.value_index*4 + 12
+        mips_code += 'sw $a0, ' + str(-value_increment) + '($fp)\n'
+        return mips_code
 
 
 class LessEqualNode(InstructionNode):
@@ -270,7 +364,17 @@ class LessEqualNode(InstructionNode):
         return int(self.number.split("_")[-1])
 
     def to_mips(self):
-        pass
+        mips_code = ''
+        number_increment = self.number_index * 4 + 12
+        mips_code += 'lw $a1, ' + str(-number_increment) + '($fp)\n'
+        mips_code += 'li $a0, 1\n'
+        returnTrue_unique_v4 = uuidv4()
+        mips_code += 'blez $a1, returnTrue' + returnTrue_unique_v4 + '\n'
+        mips_code += 'li $a0, 0\n'
+        mips_code += 'returnTrue' + returnTrue_unique_v4 + ':\n'
+        value_increment = self.value_index * 4 + 12
+        mips_code += 'sw $a0, ' + str(-value_increment) + '($fp)\n'
+        return mips_code
 
 
 class ParamNode(InstructionNode):
@@ -283,7 +387,11 @@ class ParamNode(InstructionNode):
         return int(self.name.split("_")[-1])
 
     def to_mips(self):
-        pass
+        local_increment = self.local_index * 4 + 12
+        mips_code = f'{PUSH_SP_INSTRUCTION}\n'
+        mips_code += 'lw $a0, ' + str(-local_increment) + '($fp)\n'
+        mips_code += 'sw $a0, ($sp)\n'
+        return mips_code
 
 
 class ArithmeticNode(InstructionNode):
@@ -315,12 +423,12 @@ class PlusNode(ArithmeticNode):
         local_left_increment = self.local_left_index * 4 + 12
         local_right_increment = self.local_right_index * 4 + 12
         local_value_increment = self.local_value_index * 4 + 12
-        ans = ''
-        ans += 'lw $a0, ' + str(-local_left_increment) + '($fp)\n'
-        ans += 'lw $a1, ' + str(-local_right_increment) + '($fp)\n'
-        ans += 'add $a0, $a0, $a1\n'
-        ans += 'sw $a0, ' + str(-local_value_increment) + '($fp)\n'
-        return ans
+        mips_code = ''
+        mips_code += 'lw $a0, ' + str(-local_left_increment) + '($fp)\n'
+        mips_code += 'lw $a1, ' + str(-local_right_increment) + '($fp)\n'
+        mips_code += 'add $a0, $a0, $a1\n'
+        mips_code += 'sw $a0, ' + str(-local_value_increment) + '($fp)\n'
+        return mips_code
 
 
 class MinusNode(ArithmeticNode):
@@ -344,12 +452,12 @@ class MinusNode(ArithmeticNode):
         local_left_increment = self.local_left_index * 4 + 12
         local_right_increment = self.local_right_index * 4 + 12
         local_value_increment = self.local_value_index * 4 + 12
-        ans = ''
-        ans += 'lw $a0, ' + str(-local_left_increment) + '($fp)\n'
-        ans += 'lw $a1, ' + str(-local_right_increment) + '($fp)\n'
-        ans += 'sub $a0, $a0, $a1\n'
-        ans += 'sw $a0, ' + str(-local_value_increment) + '($fp)\n'
-        return ans
+        mips_code = ''
+        mips_code += 'lw $a0, ' + str(-local_left_increment) + '($fp)\n'
+        mips_code += 'lw $a1, ' + str(-local_right_increment) + '($fp)\n'
+        mips_code += 'sub $a0, $a0, $a1\n'
+        mips_code += 'sw $a0, ' + str(-local_value_increment) + '($fp)\n'
+        return mips_code
 
 
 class StarNode(ArithmeticNode):
@@ -373,13 +481,13 @@ class StarNode(ArithmeticNode):
         local_left_increment = self.local_left_index * 4 + 12
         local_right_increment = self.local_right_index * 4 + 12
         local_value_increment = self.local_value_index * 4 + 12
-        ans = ''
-        ans += 'lw $a0, ' + str(-local_left_increment) + '($fp)\n'
-        ans += 'lw $a1, ' + str(-local_right_increment) + '($fp)\n'
-        ans += 'multu $a0, $a1\n'
-        ans += 'mflo $a0\n'
-        ans += 'sw $a0, ' + str(-local_value_increment) + '($fp)\n'
-        return ans
+        mips_code = ''
+        mips_code += 'lw $a0, ' + str(-local_left_increment) + '($fp)\n'
+        mips_code += 'lw $a1, ' + str(-local_right_increment) + '($fp)\n'
+        mips_code += 'multu $a0, $a1\n'
+        mips_code += 'mflo $a0\n'
+        mips_code += 'sw $a0, ' + str(-local_value_increment) + '($fp)\n'
+        return mips_code
 
 
 class DivNode(ArithmeticNode):
@@ -403,13 +511,13 @@ class DivNode(ArithmeticNode):
         local_left_increment = self.local_left_index * 4 + 12
         local_right_increment = self.local_right_index * 4 + 12
         local_value_increment = self.local_value_index * 4 + 12
-        ans = ''
-        ans += 'lw $a0, ' + str(-local_left_increment) + '($fp)\n'
-        ans += 'lw $a1, ' + str(-local_right_increment) + '($fp)\n'
-        ans += 'div $a0, $a1\n'
-        ans += 'mflo $a0\n'
-        ans += 'sw $a0, ' + str(-local_value_increment) + '($fp)\n'
-        return ans
+        mips_code = ''
+        mips_code += 'lw $a0, ' + str(-local_left_increment) + '($fp)\n'
+        mips_code += 'lw $a1, ' + str(-local_right_increment) + '($fp)\n'
+        mips_code += 'div $a0, $a1\n'
+        mips_code += 'mflo $a0\n'
+        mips_code += 'sw $a0, ' + str(-local_value_increment) + '($fp)\n'
+        return mips_code
 
 
 class AttributeNode(Node):
@@ -456,7 +564,14 @@ class GetAttribNode(InstructionNode):
         return int(self.value.split("_")[-1])
 
     def to_mips(self):
-        pass
+        instance_increment = self.instance_index * 4 + 12
+        mips_code = ''
+        mips_code += 'lw $a0, ' + str(-instance_increment) + '($fp)\n'
+        attr_increment = self.attr_index * 4 + 12
+        mips_code += 'lw $a1, ' + str(attr_increment) + '($a0)\n'
+        value_increment = self.value_index * 4 + 12
+        mips_code += 'sw $a1, ' + str(-value_increment) + '($fp)\n'
+        return mips_code
 
 
 class SetAttribNode(InstructionNode):
@@ -476,7 +591,14 @@ class SetAttribNode(InstructionNode):
         return int(self.value.split("_")[-1])
 
     def to_mips(self):
-        pass
+        instance_increment = self.instance_index * 4 + 12
+        mips_code = ''
+        mips_code += 'lw $a0, ' + str(-instance_increment) + '($fp)\n'
+        value_increment = self.value_index * 4 + 12
+        mips_code += 'lw $a1, ' + str(-value_increment) + '($fp)\n'
+        attr_increment = self.attr_index * 4 + 12
+        mips_code += 'sw $a1, ' + str(attr_increment) + '($a0)\n'
+        return mips_code
 
 
 class GetIndexNode(InstructionNode):
@@ -509,7 +631,17 @@ class IsVoidNode(InstructionNode):
         return int(self.instance.split("_")[-1])
 
     def to_mips(self):
-        pass
+        mips_code = ''
+        instance_increment = self.instance_index * 4 + 12
+        mips_code += 'lw $a1, ' + str(-instance_increment) + '($fp)\n'
+        mips_code += 'li $a0, 1\n'
+        isVoid_unique_v4 = uuidv4()
+        mips_code += 'beq $a1, $zero, isVoid'  + isVoid_unique_v4 + '\n'
+        mips_code += 'li $a0, 0\n'
+        mips_code += 'isVoid' + isVoid_unique_v4 + ':\n'
+        value_increment = self.value_index * 4 + 12
+        mips_code += 'sw $a0, ' + str(-value_increment) + '($fp)\n'
+        return mips_code
 
 
 class AllocateNode(InstructionNode):
@@ -533,7 +665,19 @@ class AllocateNode(InstructionNode):
         return int(self.value.split("_")[-1])
 
     def to_mips(self):
-        pass
+        value_increment = self.value_index * 4 + 12
+        mips_code = ''
+        mips_code += 'li $a0, ' + str(self.allocate_size) + '\n'
+        mips_code += 'li $v0, 9\n'
+        mips_code += 'syscall\n'
+        mips_code += 'li $a0, ' + self.class_tag + '\n'
+        mips_code += 'sw $a0, ' + '($v0)\n'
+        mips_code += 'li $a0, ' + self.object_size + '\n'
+        mips_code += 'sw $a0, ' + '4($v0)\n'
+        mips_code += 'la $a0, ' + self.dispatch_ptr + '\n'
+        mips_code += 'sw $a0, ' + '8($v0)\n'
+        mips_code += 'sw $v0, ' + str(-value_increment) + '($fp)\n'
+        return mips_code
 
 
 class ArrayNode(InstructionNode):
@@ -557,7 +701,12 @@ class TypeOfNode(InstructionNode):
         return int(self.value.split("_")[-1])
 
     def to_mips(self):
-        pass
+        mips_code = ''
+        instance_increment = self.instance_index * 4 + 12
+        mips_code += 'lw $a0, ' + str(-instance_increment) + '($fp)' '\n'
+        mips_code += 'lw $a0, ($a0)\n'
+        mips_code += 'sw $a0, ' + str(-(self.value_index * 4 + 12)) + '($fp)\n'
+        return mips_code
 
 
 class LabelNode(InstructionNode):
@@ -566,7 +715,7 @@ class LabelNode(InstructionNode):
         self.label_name = label_name
 
     def to_mips(self):
-        pass
+        return self.label_name + ':\n'
 
 
 class GotoNode(InstructionNode):
@@ -575,7 +724,7 @@ class GotoNode(InstructionNode):
         self.label_to_jump = label_to_jump
 
     def to_mips(self):
-        pass
+        return "j " + self.label_to_jump + '\n'
 
 
 class GotoIfNode(InstructionNode):
@@ -589,7 +738,10 @@ class GotoIfNode(InstructionNode):
         return int(self.predicate_name.split("_")[-1])
 
     def to_mips(self):
-        pass
+        mips_code = ''
+        mips_code += 'lw $a0, ' + str(-(self.predicate_value * 4 + 12)) + '($fp)\n'
+        mips_code += 'bne $a0, $zero, ' + self.if_label + '\n'
+        return mips_code
 
 
 class StackGotoNode(InstructionNode):
@@ -598,7 +750,7 @@ class StackGotoNode(InstructionNode):
         self.local_to_jump = local_to_jump
 
     def to_mips(self):
-        pass
+        return "jr " + self.local_to_jump + "\n"
 
 
 class PushaNode(InstructionNode):
@@ -606,7 +758,7 @@ class PushaNode(InstructionNode):
         super(PushaNode, self).__init__("push_all_registers")
 
     def to_mips(self):
-        pass
+        return PUSH_ALL_REGISTERS
 
 
 class PopaNode(InstructionNode):
@@ -614,7 +766,7 @@ class PopaNode(InstructionNode):
         super(PopaNode, self).__init__("pop_all_registers")
 
     def to_mips(self):
-        pass
+        return POP_ALL_REGISTERS
 
 
 class StaticCallNode(InstructionNode):
@@ -630,7 +782,11 @@ class StaticCallNode(InstructionNode):
         return int(self.value.split("_")[-1])
 
     def to_mips(self):
-        pass
+        mips_code = ''
+        mips_code += 'jal ' + self.func_name + '\n'
+        mips_code += 'sw $v0, ' + str(-(self.value_index * 4 + 12)) + '($fp)\n'
+        mips_code += 'addu $sp, $sp, ' + str(self.count * 4) + '\n'
+        return mips_code
 
 
 class DynamicCallNode(InstructionNode):
@@ -656,7 +812,45 @@ class DynamicCallNode(InstructionNode):
         return int(self.func_name.split("_")[-1])
 
     def to_mips(self):
-        pass
+        mips_code = ''
+        instance_increment = self.instance_index*4 + 12
+        mips_code += 'lw $a3, ' + str(-instance_increment) + '($fp)\n'
+        func_name_increment = self.func_name_index*4 + 12
+        mips_code += 'lw $t4, ' + str(-func_name_increment) + '($fp)\n'
+        mips_code += 'lw $a3, 8($a3)\n'
+        mips_code += 'li $t0, 0\n'
+        tableLoop_unique_v4 = uuidv4()
+        mips_code += 'tableLoop' + tableLoop_unique_v4 + ':\n'
+        mips_code += 'add $t3, $a3, $t0\n'
+        mips_code += 'lw $t3, ($t3)\n'
+        mips_code += 'move $a1, $t4\n'
+        mips_code += 'move $a2, $t3\n'
+        mips_code += 'li $a0, 1\n'
+        compareLoop_unique_v4 = uuidv4()
+        mips_code += 'compareLoop' + compareLoop_unique_v4 + ':\n'
+        mips_code += 'lb $t1, ($a1)\n'
+        mips_code += 'lb $t2, ($a2)\n'
+        returnFalse_unique_v4 = uuidv4()
+        mips_code += 'bne $t1, $t2, returnFalse' + returnFalse_unique_v4 + '\n'
+        returnTrue_unique_v4 = uuidv4()
+        mips_code += 'beqz $t1, returnTrue' + returnTrue_unique_v4 + '\n'
+        mips_code += 'add $a1, $a1, 1\n'
+        mips_code += 'add $a2, $a2, 1\n'
+        mips_code += 'j compareLoop' + compareLoop_unique_v4 + '\n'
+        mips_code += 'j returnTrue' + returnTrue_unique_v4 + '\n'
+        mips_code += 'returnFalse' + returnFalse_unique_v4 + ':\n'
+        mips_code += 'li $a0, 0\n'
+        mips_code += 'returnTrue' + returnTrue_unique_v4 + ':\n'
+        mips_code += 'add $t0, $t0, 8\n'
+        mips_code += 'beqz $a0, tableLoop' + tableLoop_unique_v4 + '\n'
+        mips_code += 'sub $a0, $t0, 4\n'
+        mips_code += 'add $a0, $a3, $a0\n'
+        mips_code += 'lw $a0, ($a0)\n'
+        mips_code += 'jalr $a0\n'
+        value_increment = self.value_index*4 + 12
+        mips_code += 'sw $v0, ' + str(-value_increment) + '($fp)\n'
+        mips_code += 'addu $sp, $sp, ' + str(self.count * 4) + '\n'
+        return mips_code
 
 
 class ArgNode(InstructionNode):
@@ -670,7 +864,10 @@ class ArgNode(InstructionNode):
         return int(self.arg_name.split("_")[-1])
 
     def to_mips(self):
-        pass
+        mips_code = ''
+        mips_code += 'lw $a0, ' + str(self.arg_index * 4) + '($fp)\n'
+        mips_code += 'sw $a0, ' + str(-(self.arg_name_index * 4 + 12)) + '($fp)\n'
+        return mips_code
 
 
 class CopyNode(InstructionNode):
@@ -689,10 +886,34 @@ class CopyNode(InstructionNode):
 
     @property
     def node_id(self):
-        return str(uuid.uuid4().hex)
+        return uuidv4()
 
     def to_mips(self):
-        pass
+        instance_increment = self.instance_index*4 + 12
+        value_increment = self.value_index*4 + 12
+        mips_code = 'lw $a1, ' + str(-instance_increment) + '($fp)\n'
+        mips_code += 'lw $a0, 4($a1)\n'
+        mips_code += 'li $a2, 4\n'
+        mips_code += 'multu $a0, $a2\n'
+        mips_code += 'mflo $a0\n'
+        mips_code += 'li $v0, 9\n'
+        mips_code += 'syscall\n'
+        mips_code += 'move $t0, $v0\n'
+        mips_code += 'li $t1, 0\n'
+        mips_code += 'lw $a0, 4($a1)\n'
+        loop_unique_v4 = uuidv4()
+        mips_code += 'loop' + loop_unique_v4 + ':' '\n'
+        mips_code += 'lw $t2, ($a1)\n'
+        brake_unique_v4 = uuidv4()
+        mips_code += 'beq $t1, $a0, brake' + brake_unique_v4 + '\n'
+        mips_code += 'sw $t2,($t0)\n'
+        mips_code += 'add $a1, $a1, 4\n'
+        mips_code += 'add $t0, $t0, 4\n'
+        mips_code += 'add $t1, $t1, 1\n'
+        mips_code += 'j loop' + loop_unique_v4 + '\n'
+        mips_code += 'brake' + brake_unique_v4 + ':' + '\n'
+        mips_code += 'sw $v0, ' + str(-value_increment) + '($fp)\n'
+        return mips_code
 
 
 class ReturnNode(InstructionNode):
@@ -702,10 +923,18 @@ class ReturnNode(InstructionNode):
 
     @property
     def value_index(self):
-        return int(self.value.split("_")[-1])
+        return int(self.value.split('_')[-1])
 
     def to_mips(self):
-        pass
+        mips_code = ""
+        mips_code += "lw $v0, " + str(-(self.value_index * 4 + 12)) + '($fp)\n'
+        mips_code += 'move $sp, $fp\n'
+        mips_code += 'subu $a0, $sp, 4\n'
+        mips_code += 'lw $fp, ($a0)\n'
+        mips_code += 'subu $a0, $sp, 8\n'
+        mips_code += 'lw $ra, ($a0)\n'
+        mips_code += "jr $ra\n"
+        return mips_code
 
 
 class LoadNode(InstructionNode):
@@ -719,7 +948,10 @@ class LoadNode(InstructionNode):
         return int(self.value.split("_")[-1])
 
     def to_mips(self):
-        pass
+        mips_code = ""
+        mips_code += "la $a0, " + self.msg + "\n"
+        mips_code += "sw $a0, " + str(-(self.value_index * 4 + 12)) + "($fp)\n"
+        return mips_code
 
 
 class StringCmp(InstructionNode):
@@ -742,7 +974,30 @@ class StringCmp(InstructionNode):
         return int(self.str2.split("_")[-1])
 
     def to_mips(self):
-        pass
+        mips_code = ''
+        str1_increment = self.str1_index*4 + 12
+        mips_code += 'lw $a1, ' + str(-str1_increment) + '($fp)\n'
+        str2_increment = self.str2_index*4 + 12
+        mips_code += 'lw $a2, ' + str(-str2_increment) + '($fp)\n'
+        mips_code += 'li $a0, 1\n'
+        compareLoop_unique_v4 = uuidv4()
+        mips_code += 'compareLoop' + compareLoop_unique_v4 + ':\n'
+        mips_code += 'lb $t1, ($a1)\n'
+        mips_code += 'lb $t2, ($a2)\n'
+        returnFalse_unique_v4 = uuidv4()
+        mips_code += 'bne $t1, $t2, returnFalse' + returnFalse_unique_v4 + '\n'
+        returnTrue_unique_v4 = uuidv4()
+        mips_code += 'beqz $t1, returnTrue' + returnTrue_unique_v4 + '\n'
+        mips_code += 'add $a1, $a1, 1\n'
+        mips_code += 'add $a2, $a2, 1\n'
+        mips_code += 'j compareLoop' + compareLoop_unique_v4 + '\n'
+        mips_code += 'j returnTrue' + returnTrue_unique_v4 + '\n'
+        mips_code += 'returnFalse' + returnFalse_unique_v4 + ':\n'
+        mips_code += 'li $a0, 0\n'
+        mips_code += 'returnTrue' + returnTrue_unique_v4 + ':\n'
+        value_increment = self.value_index*4 + 12
+        mips_code += 'sw $a0, ' + str(-value_increment) + '($fp)\n'
+        return mips_code
 
 
 class LengthNode(InstructionNode):
@@ -761,10 +1016,25 @@ class LengthNode(InstructionNode):
 
     @property
     def node_id(self):
-        return str(uuid.uuid4().hex)
+        return uuidv4()
 
     def to_mips(self):
-        pass
+        mips_code = ''
+        instance_name_increment = self.instance_name_index * 4 + 12
+        mips_code += 'lw $a1, ' + str(-instance_name_increment) + '($fp)\n'
+        mips_code += 'li $a0, 0\n'
+        lengthLoop_unique_v4 = uuidv4()
+        mips_code += 'lengthLoop' + lengthLoop_unique_v4 + ':\n'
+        mips_code += 'lb $t2, ($a1)\n'
+        brakeLengthLoop_unique_v4 = uuidv4()
+        mips_code += 'beq $t2, $zero, brakeLengthLoop' + brakeLengthLoop_unique_v4 + '\n'
+        mips_code += 'add $a0, $a0, 1\n'
+        mips_code += 'add $a1, $a1, 1\n'
+        mips_code += 'j lengthLoop' + lengthLoop_unique_v4 + '\n'
+        mips_code += 'brakeLengthLoop' + brakeLengthLoop_unique_v4 + ':\n'
+        value_increment = self.value_index * 4 + 12
+        mips_code += 'sw $a0, ' + str(-value_increment) + '($fp)\n'
+        return mips_code
 
 
 class ConcatNode(InstructionNode):
@@ -798,10 +1068,46 @@ class ConcatNode(InstructionNode):
 
     @property
     def node_id(self):
-        return str(uuid.uuid4().hex)
+        return uuidv4()
 
     def to_mips(self):
-        pass
+        str1_increment = self.str1_index*4 + 12
+        str2_increment = self.str2_index*4 + 12
+        value_increment = self.value_index*4 + 12
+        len1_increment = self.len1_index*4 + 12
+        len2_increment = self.len2_index*4 + 12
+        mips_code = ''
+        mips_code += 'lw $a1, ' + str(-str1_increment) + '($fp)\n'
+        mips_code += 'lw $a0, ' + str(-len1_increment) + '($fp)\n'
+        mips_code += 'lw $t0, ' + str(-len2_increment) + '($fp)\n'
+        mips_code += 'add $a0, $a0, $t0\n'
+        mips_code += 'li $v0, 9\n'
+        mips_code += 'syscall\n'
+        mips_code += 'move $t0, $v0\n'
+        loop_unique_v4 = uuidv4()
+        mips_code += 'loop' + loop_unique_v4 + ':\n'
+        mips_code += 'lb $t2, ($a1)\n'
+        brake_unique_v4 = uuidv4()
+        mips_code += 'beq $t2, $zero, brake' + brake_unique_v4 + '\n'
+        mips_code += 'sb $t2,($t0)\n'
+        mips_code += 'add $a1, $a1, 1\n'
+        mips_code += 'add $t0, $t0, 1\n'
+        mips_code += 'j loop' + loop_unique_v4 + '\n'
+        mips_code += 'brake' + brake_unique_v4 + ':\n'
+        mips_code += 'lw $a1, ' + str(-str2_increment) + '($fp)\n'
+        loop2_unique_v4 = uuidv4()
+        mips_code += 'loop2' + loop2_unique_v4 + ':\n'
+        mips_code += 'lb $t2, ($a1)\n'
+        brake2_unique_v4 = uuidv4()
+        mips_code += 'beq $t2, $zero, brake2' + brake2_unique_v4 + '\n'
+        mips_code += 'sb $t2,($t0)\n'
+        mips_code += 'add $a1, $a1, 1\n'
+        mips_code += 'add $t0, $t0, 1\n'
+        mips_code += 'j loop2' + loop2_unique_v4 + '\n'
+        mips_code += 'brake2' + brake2_unique_v4 + ':\n'
+        mips_code += 'sb $zero, ($t0)\n'
+        mips_code += 'sw $v0, ' + str(-value_increment) + '($fp)\n'
+        return mips_code
 
 
 class SubstringNode(InstructionNode):
@@ -830,10 +1136,39 @@ class SubstringNode(InstructionNode):
 
     @property
     def node_id(self):
-        return str(uuid.uuid4().hex)
+        return uuidv4()
 
     def to_mips(self):
-        pass
+        mips_code = ''
+        text_increment = 4*self.text_index + 12
+        mips_code += 'lw $a1, ' + str(-text_increment) + '($fp)\n'
+        index_increment = 4*self.index_index + 12
+        mips_code += 'lw $t0, ' + str(-index_increment) + '($fp)\n'
+        mips_code += 'add $a1, $a1, $t0\n'
+        length_increment = 4*self.length_index + 12
+        mips_code += 'lw $a0, ' + str(-length_increment) + '($fp)\n'
+        mips_code += 'add $a0, $a0, 1\n'
+        mips_code += 'li $v0, 9\n'
+        mips_code += 'syscall\n'
+        mips_code += 'sub $a0, $a0, 1\n'
+        mips_code += 'move $t0, $v0\n'
+        mips_code += 'li $t1, 0\n'
+        loop_unique_v4 = uuidv4()
+        mips_code += 'loop' + loop_unique_v4 + ':\n'
+        mips_code += 'lb $t2, ($a1)\n'
+        brake_unique_v4 = uuidv4()
+        mips_code += 'beq $t2, $zero, brake' + brake_unique_v4 + '\n'
+        mips_code += 'beq $t1, $a0, brake' + brake_unique_v4 + '\n'
+        mips_code += 'sb $t2,($t0)\n'
+        mips_code += 'add $a1, $a1, 1\n'
+        mips_code += 'add $t1, $t1, 1\n'
+        mips_code += 'add $t0, $t0, 1\n'
+        mips_code += 'j loop' + loop_unique_v4 + '\n'
+        mips_code += 'brake' + brake_unique_v4 + ':\n'
+        mips_code += 'sb $zero, ($t0)\n'
+        value_increment = self.value_index*4 + 12
+        mips_code += 'sw $v0, ' + str(-value_increment) + '($fp)\n'
+        return mips_code
 
 
 class ParentOfNode(InstructionNode):
@@ -847,7 +1182,14 @@ class ParentOfNode(InstructionNode):
         return int(self.value.split("_")[-1])
 
     def to_mips(self):
-        pass
+        mips_code = "li $a1, 4\n"
+        mips_code += "mulu $a0, $a0, $a1\n"
+        mips_code += "la $a1, inheritance_table\n"
+        mips_code += "addu $a1, $a1, $a0\n"
+        mips_code += "lw $a0, ($a1)\n"
+        increment = self.value_index*4 + 12
+        mips_code += 'sw $v0, ' + str(-increment) + '($fp)\n'
+        return mips_code
 
 
 class ToStrNode(InstructionNode):
@@ -867,7 +1209,12 @@ class ReadIntegerNode(InstructionNode):
         return int(self.value.split("_")[-1])
 
     def to_mips(self):
-        pass
+        mips_code = ''
+        value_increment = self.value_index * 4 + 12
+        mips_code += 'li $v0, 5\n'
+        mips_code += 'syscall\n'
+        mips_code += 'sw $v0, ' + str(-value_increment) + '($fp)\n'
+        return mips_code
 
 
 class ReadStringNode(InstructionNode):
@@ -880,7 +1227,17 @@ class ReadStringNode(InstructionNode):
         return int(self.value.split("_")[-1])
 
     def to_mips(self):
-        pass
+        value_increment = self.value_index * 4 + 12
+        mips_code = ''
+        mips_code += 'li $a0, 50\n'
+        mips_code += 'li $v0, 9\n'
+        mips_code += 'syscall\n'
+        mips_code += 'move $a0, $v0\n'
+        mips_code += 'li $a1, 50\n'
+        mips_code += 'li $v0, 8\n'
+        mips_code += 'syscall\n'
+        mips_code += 'sw $a0, ' + str(-value_increment) + '($fp)\n'
+        return mips_code
 
 
 class PrintIntegerNode(InstructionNode):
@@ -893,7 +1250,11 @@ class PrintIntegerNode(InstructionNode):
         return int(self.int_addr.split("_")[-1])
 
     def to_mips(self):
-        pass
+        int_addr_index = self.int_addr_index * 4 + 12
+        mips_code = 'lw $a0, ' + str(-int_addr_index) + '($fp)\n'
+        mips_code += 'li $v0, 1\n'
+        mips_code += 'syscall\n'
+        return mips_code
 
 
 class PrintStringNode(InstructionNode):
@@ -905,7 +1266,12 @@ class PrintStringNode(InstructionNode):
         return int(self.str_addr.split("_")[-1])
 
     def to_mips(self):
-        pass
+        i = self.get_str_index() * 4 + 12
+        mips_code = ''
+        mips_code += 'lw $a0, ' + str(-i) + '($fp)\n'
+        mips_code += 'li $v0, 4\n'
+        mips_code += 'syscall\n'
+        return mips_code
 
 
 class StringCopyNode(InstructionNode):
@@ -925,14 +1291,26 @@ class BooleanNegation(InstructionNode):
         return int(self.expr.split("_")[-1])
 
     def to_mips(self):
-        pass
+        mips_code = ''
+        expr_increment = self.expr_index * 4 + 12
+        mips_code += 'lw $a0, ' + str(-expr_increment) + '($fp)\n'
+        mips_code += 'lw $a2, 12($a0)\n'
+        mips_code += 'li $a1, 1\n'
+        mips_code += 'sub $a2, $a1, $a2\n'
+        mips_code += 'sw $a2, 12($a0)\n'
+        return mips_code
 
 
 class AbortNode(InstructionNode):
-    def __init__(self, error_message):  # , value):
+    def __init__(self, error_message):
         super(AbortNode, self).__init__("abort")
         self.error_message = error_message
-        # self.value = value
 
     def to_mips(self):
-        pass
+        mips_code = ''
+        mips_code += 'la $a0, ' + self.error_message + '\n'
+        mips_code += 'li $v0, 4\n'
+        mips_code += 'syscall\n'
+        mips_code += 'li $v0, 10\n'
+        mips_code += 'syscall\n'
+        return mips_code

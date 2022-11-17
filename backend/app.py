@@ -89,11 +89,11 @@ def process_input_code(code = ""):
     symbols_table, errors = SymbolsVisitor(types_table).visit(tree2)
     types_table.calculate_classes_sizes()
 
-    print("TABLE: ", symbols_table)
-    print("ERRORS?: ", errors)
+    # print("TABLE: ", symbols_table)
+    # print("ERRORS?: ", errors)
 
-    for value in types_table.class_list.values():
-        print('Val: ', value.id, value.length)
+    # for value in types_table.class_list.values():
+    #    print('Val: ', value.id, value.length)
 
     validate_main = (MAIN_TYPE in active_context_type.types.keys() and active_context_type.types[MAIN_TYPE].name == MAIN_TYPE and MAIN_FUNCTION in active_context_type.types[MAIN_TYPE].methods.keys())
     
