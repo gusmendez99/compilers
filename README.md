@@ -3,9 +3,9 @@
 Implementation for YAPL Compiler, from Lexical Analyzer to Code Generation (MIPS).
 
 ## Output
+Outputs for `ackermann`, `arith`, `factorial` and `list` YAPL test files were placed in the `/mips` folder.
 
-
-**YAPL to MIPS (input: Ackermann YAPL test, "recur.cl")**
+**YAPL to MIPS (input: Ackermann YAPL test)**
 
 The Ackermann function is the simplest example of a well-defined total function which is computable but not primitive recursive, providing a counterexample to the belief in the early 1900s that every computable function was also primitive recursive. In this final test, we check the result for A(m=3, n=2) = 29 (see MARS MIPS output).
 
